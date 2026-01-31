@@ -1,0 +1,3 @@
+[submodule "bamboo/bamboo-core"]
+	path = bamboo/bamboo-core
+	url = https://github.com/BambooEngine/bamboo-core.git

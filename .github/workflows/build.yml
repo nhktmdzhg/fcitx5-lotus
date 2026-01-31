@@ -1,64 +1,77 @@
-name: Build VMK
-
+name: CI
 on:
   push:
-    tags:
-      - 'v*'
-  workflow_dispatch:
-    inputs:
-      reason:
-        description: 'Thích thì build thôi'
-        required: false
-        default: 'Manual build'
-
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
 jobs:
-  build:
-    name: Build on Ubuntu 22.04
-    runs-on: ubuntu-22.04
-    permissions:
-      contents: write
-    
+  clang-format:
+    name: Check clang-format
+    runs-on: ubuntu-latest
+    container: archlinux:latest
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      
-    - name: Install dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y \
-          build-essential \
-          cmake \
-          extra-cmake-modules \
-          libfcitx5core-dev \
-          libfcitx5config-dev \
-          libfcitx5utils-dev \
-          libinput-dev \
-          libudev-dev \
-          g++ \
-          golang \
-          hicolor-icon-theme \
-          pkg-config \
-          libx11-dev
-      
-    - name: Create tarball structure
-      run: |
-        mkdir -p dist
-        sudo make install DESTDIR=$(pwd)/dist PREFIX=/usr
+      - name: Install dependencies
+        run: |
+          pacman -Syu --noconfirm git clang diffutils
+          git config --global --add safe.directory $GITHUB_WORKSPACE
+      - uses: actions/checkout@v4
+      - uses: fcitx/github-actions@clang-format
+  check:
+    name: Build and test
+    needs: clang-format
+    runs-on: ubuntu-latest
+    container: archlinux:latest
+    strategy:
+      fail-fast: false
+      matrix:
+        compiler: [gcc, clang]
+        include:
+          - compiler: gcc
+            cxx_compiler: g++
+          - compiler: clang
+            cxx_compiler: clang++
+    env:
+      CC: ${{ matrix.compiler }}
+      CXX: ${{ matrix.cxx_compiler }}
+    steps:
+      - name: Install dependencies
+        run: |
+          pacman -Syu --noconfirm base-devel clang cmake ninja extra-cmake-modules fmt libuv boost git go libx11 libinput systemd-libs extra-cmake-modules
+      - uses: actions/checkout@v4
+        with:
+          repository: fcitx/fcitx5
+          path: fcitx5
+      - name: Cache fcitx5 data files
+        uses: actions/cache@v4
+        with:
+          path: 'fcitx5/**/*.tar.*'
+          key: ${{ runner.os }}-${{ hashFiles('fcitx5/src/modules/spell/CMakeLists.txt')
+            }}
+      - name: Build and Install fcitx5
+        uses: fcitx/github-actions@cmake
+        with:
+          path: fcitx5
+          cmake-option: >-
+            -DENABLE_KEYBOARD=Off -DENABLE_X11=Off -DENABLE_WAYLAND=Off -DENABLE_ENCHANT=Off
+            -DENABLE_DBUS=Off -DENABLE_SERVER=Off -DENABLE_EMOJI=Off -DUSE_SYSTEMD=Off
+      - uses: actions/checkout@v4
+        with:
+          path: fcitx5-vmk
+          submodules: true
+      - name: Init CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: cpp,go
+          source-root: fcitx5-vmk
+      - name: Build and Install fcitx5-vmk
+        uses: fcitx/github-actions@cmake
+        with:
+          path: fcitx5-vmk
+      - name: Test
+        run: |
+          ctest --test-dir fcitx5-vmk/build
+      - name: CodeQL Analysis
+        uses: github/codeql-action/analyze@v2
 
-        ls -R dist/
-        
-    - name: Compress Artifact
-      run: |
-        tar -czf fcitx5-vmk-${{ github.ref_name }}.tar.gz -C dist .
-
-    - name: Create Release
-      if: startsWith(github.ref, 'refs/tags/')
-      uses: softprops/action-gh-release@v2
-      with:
-        files: fcitx5-vmk-${{ github.ref_name }}.tar.gz
-        name: Release ${{ github.ref_name }}
-        tag_name: ${{ github.ref }}
-        draft: true
-        prerelease: false
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -1,0 +1,6 @@
+# CMake build files
+CMakeFiles/
+Makefile
+cmake_install.cmake
+# Generated translation files
+*.mo

@@ -1,0 +1,4 @@
+# CMake build files
+CMakeFiles/
+Makefile
+cmake_install.cmake

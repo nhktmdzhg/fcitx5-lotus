@@ -1,2 +1,24 @@
-fcitx5-vmk-server
+build*/
+.*
+!.git*
+.git/
+*.tar.*
+*.kdev4
+*.kate-swp
+*.orig
+tags
+astyle.sh
+cscope.*
+*.part
+XF86keysym.h
+keysymdef.h
+*~
+!.clang-format
+
+# CMake build files
+CMakeCache.txt
 CMakeFiles/
+cmake_install.cmake
+ecm_uninstall.cmake
+install_manifest.txt
+org.fcitx.Fcitx5.Addon.Vmk.metainfo.xml

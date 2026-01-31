@@ -1,0 +1,130 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: PACKAGE VERSION\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-01-31 18:05+0700\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#: src/vmk.cpp:812
+msgid "Chế độ gõ"
+msgstr ""
+
+#: src/vmk.cpp:877
+msgid "Bảng mã"
+msgstr ""
+
+#: src/vmk.cpp:908 src/vmkconfig.h:174
+msgid "Enable spell check"
+msgstr ""
+
+#: src/vmk.cpp:922 src/vmkconfig.h:175
+msgid "Enable Macro"
+msgstr ""
+
+#: src/vmk.cpp:935 src/vmkconfig.h:176
+msgid "Capitalize Macro"
+msgstr ""
+
+#: src/vmk.cpp:951 src/vmkconfig.h:179
+msgid "Auto restore keys with invalid words"
+msgstr ""
+
+#: src/vmk.cpp:966 src/vmkconfig.h:182
+msgid "Use oà, _uý (instead of òa, úy)"
+msgstr ""
+
+#: src/vmk.cpp:980 src/vmkconfig.h:184
+msgid "Allow type with more freedom"
+msgstr ""
+
+#: src/vmk.cpp:1263
+msgid "Chế độ gõ: "
+msgstr ""
+
+#: src/vmk.cpp:1298
+msgid "Spell Check: Bật"
+msgstr ""
+
+#: src/vmk.cpp:1298
+msgid "Spell Check: Tắt"
+msgstr ""
+
+#: src/vmk.cpp:1306
+msgid "Macro: Bật"
+msgstr ""
+
+#: src/vmk.cpp:1307
+msgid "Macro: Tắt"
+msgstr ""
+
+#: src/vmk.cpp:1316
+msgid "Capitalize Macro: Bật"
+msgstr ""
+
+#: src/vmk.cpp:1317
+msgid "Capitalize Macro: Tắt"
+msgstr ""
+
+#: src/vmk.cpp:1326
+msgid "Auto Non-VN Restore: Bật"
+msgstr ""
+
+#: src/vmk.cpp:1327
+msgid "Auto Non-VN Restore: Tắt"
+msgstr ""
+
+#: src/vmk.cpp:1336
+msgid "Modern Style: Bật"
+msgstr ""
+
+#: src/vmk.cpp:1336
+msgid "Modern Style: Tắt"
+msgstr ""
+
+#: src/vmk.cpp:1345
+msgid "Free Marking: Bật"
+msgstr ""
+
+#: src/vmk.cpp:1345
+msgid "Free Marking: Tắt"
+msgstr ""
+
+#: src/vmkconfig.h:112
+msgid "Key"
+msgstr ""
+
+#: src/vmkconfig.h:113
+msgid "Value"
+msgstr ""
+
+#: src/vmkconfig.h:120
+msgid "Macro"
+msgstr ""
+
+#: src/vmkconfig.h:131
+msgid "Custom Keymap"
+msgstr ""
+
+#: src/vmkconfig.h:143
+msgid "Chế độ"
+msgstr ""
+
+#: src/vmkconfig.h:154
+msgid "Input Method"
+msgstr ""
+
+#: src/vmkconfig.h:164
+msgid "Output Charset"
+msgstr ""

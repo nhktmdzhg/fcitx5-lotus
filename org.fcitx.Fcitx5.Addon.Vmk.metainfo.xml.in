@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<component type="addon">
+  <id>org.fcitx.Fcitx5.Addon.VMK</id>
+  <extends>org.fcitx.Fcitx5</extends>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>LGPL-2.1+</project_license>
+  <name>VMK</name>
+  <name xml:lang="vi">VMK</name>
+  <summary>Vietnamese input method (Custom VMK)</summary>
+  <summary xml:lang="vi">Kiểu gõ tiếng Việt (VMK Tùy chỉnh)</summary>
+  <url type="homepage">https://fcitx-im.org</url>
+  <url type="bugtracker">https://github.com/fcitx/fcitx5-vmk/issues</url>
+  <project_group>Fcitx</project_group>
+  <releases>
+    <release version="0.9" date="@DATE@"/>   </releases>
+</component>

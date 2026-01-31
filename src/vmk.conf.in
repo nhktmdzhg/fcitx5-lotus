@@ -1,0 +1,6 @@
+[InputMethod]
+Name=Vmk
+Icon=fcitx-vmk
+LangCode=vi
+Addon=vmk
+Configurable=True
