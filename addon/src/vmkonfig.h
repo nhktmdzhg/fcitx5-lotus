@@ -19,6 +19,49 @@
 
 namespace fcitx {
 
+enum class VMKMode {
+    Off = 0,
+    VMK1 = 1,
+    VMK2 = 2,
+    Preedit = 3,
+    VMK1HC = 4,
+    NoMode = 5
+};
+
+// Convert mode enum to string for UI display
+inline std::string modeEnumToString(VMKMode mode) {
+    switch (mode) {
+    case VMKMode::Off:
+        return "Off";
+    case VMKMode::VMK1:
+        return "vmk1";
+    case VMKMode::VMK2:
+        return "vmk2";
+    case VMKMode::Preedit:
+        return "vmkpre";
+    case VMKMode::VMK1HC:
+        return "vmk1hc";
+    default:
+        return "";
+    }
+}
+
+// Convert mode string to enum
+inline VMKMode modeStringToEnum(const std::string &mode) {
+    if (mode == "vmk1")
+        return VMKMode::VMK1;
+    else if (mode == "vmk2")
+        return VMKMode::VMK2;
+    else if (mode == "vmkpre")
+        return VMKMode::Preedit;
+    else if (mode == "vmk1hc")
+        return VMKMode::VMK1HC;
+    else if (mode == "Off")
+        return VMKMode::Off;
+    else
+        return VMKMode::NoMode;
+}
+
 struct InputMethodConstrain;
 struct InputMethodAnnotation;
 

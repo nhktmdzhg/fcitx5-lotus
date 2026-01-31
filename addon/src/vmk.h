@@ -177,7 +177,7 @@ class vmkEngine final : public InputMethodEngine {
     std::vector<ScopedConnection> connections_;
     CGoObject dictionary_;
     // ibus-bamboo mode save/load
-    std::unordered_map<std::string, std::string> appRules_;
+    std::unordered_map<std::string, fcitx::VMKMode> appRules_;
     std::string appRulesPath_;
     bool isSelectingAppMode_ = false;
     std::string currentConfigureApp_;

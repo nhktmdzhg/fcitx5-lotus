@@ -27,19 +27,15 @@
 #include <algorithm>
 #include <atomic>
 #include <cassert>
-#include <cctype>
 #include <cerrno>
 #include <chrono>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <filesystem>
-#include <iostream>
-#include <optional>
 #include <stdexcept>
 #include <string>
 #include <thread>
-#include <unordered_map>
 
 #include <dirent.h>
 #include <errno.h>
@@ -68,9 +64,7 @@
 #include <mutex>
 #endif
 
-int E = 1;
-int EE = 1;
-int kkk = 0;
+fcitx::VMKMode E = fcitx::VMKMode::VMK1;
 std::atomic<int> Y{0};
 std::atomic<int> Y1{0};
 std::string BASE_SOCKET_PATH;
@@ -78,24 +72,6 @@ std::string BASE_SOCKET_PATH_TEST;
 static const int MAX_SOCKET_ATTEMPTS = 10;
 // Global flag to signal mouse click for closing app mode menu
 static std::atomic<bool> g_mouse_clicked{false};
-// Global flag for Gemini detection
-static bool isGemini = false;
-
-// Helper function to convert mode string to int
-static int modeStringToInt(const std::string &mode) {
-    if (mode == "vmk1")
-        return 1;
-    else if (mode == "vmk2")
-        return 2;
-    else if (mode == "vmkpre")
-        return 3;
-    else if (mode == "vmk1hc")
-        return 4;
-    else if (mode == "Off")
-        return 0;
-    else
-        return 1;
-}
 
 std::atomic<int> is_deleting_{0};
 static std::string getLastUtf8Char(const std::string &str);
@@ -224,10 +200,6 @@ static void DeletePreviousNChars(fcitx::InputContext *ic, size_t n,
     }
 }
 
-static void DumpICInfo(fcitx::InputContext *ic) {
-    if (!ic)
-        return;
-}
 } // namespace
 
 FCITX_DEFINE_LOG_CATEGORY(vmk, "vmk");
@@ -242,18 +214,7 @@ class VMKState final : public InputContextProperty {
 
     void setEngine() {
         vmkEngine_.reset();
-        const std::string currentMode = engine_->config().mode.value();
-        if (currentMode == "vmk1")
-            E = 1;
-        else if (currentMode == "vmk2")
-            E = 2;
-        else if (currentMode == "vmkpre")
-            E = 3;
-        else if (currentMode == "vmk1hc")
-            E = 4;
-        else
-            E = 1;
-        EE = 1;
+        E = fcitx::modeStringToEnum(engine_->config().mode.value());
 
         if (engine_->config().inputMethod.value() == "Custom") {
             std::vector<char *> charArray;
@@ -368,7 +329,7 @@ class VMKState final : public InputContextProperty {
             } else {
                 is_deleting_.store(0);
                 current_thread_id_.fetch_add(1);
-                usleep(20000);
+                std::this_thread::sleep_for(std::chrono::milliseconds(20));
                 ic_->commitString(pending_commit_string_);
                 expected_backspaces_ = 0;
                 current_backspace_count_ = -1;
@@ -435,51 +396,6 @@ class VMKState final : public InputContextProperty {
         }
 
         return false;
-    }
-
-    bool isChromeRichText(fcitx::InputContext *ic) {
-        if (!ic)
-            return false;
-        auto &surrounding = ic->surroundingText();
-        if (!surrounding.isValid())
-            return false;
-
-        const std::string &text = surrounding.text();
-
-        if (!text.empty() && text.find((char)0x0a) != std::string::npos) {
-            return true;
-        }
-        return false;
-    }
-
-    bool isOnlySingleWordBeforeCursor(fcitx::InputContext *ic) {
-        if (!ic)
-            return false;
-        auto &surrounding = ic->surroundingText();
-        if (!surrounding.isValid())
-            return false;
-
-        const std::string &text = surrounding.text();
-        size_t cursor = surrounding.cursor();
-
-        if (text.empty() || cursor == 0)
-            return true;
-
-        std::string prefix = text.substr(0, cursor);
-
-        if (prefix.length() > 0 && prefix[0] == 0x0a) {
-            prefix.erase(0, 1);
-        }
-
-        if (prefix.empty())
-            return true;
-
-        if (prefix.find((char)0x0a) != std::string::npos)
-            return false;
-        if (prefix.find(' ') != std::string::npos)
-            return false;
-
-        return true;
     }
 
     // Helper function for preedit mode
@@ -599,18 +515,6 @@ class VMKState final : public InputContextProperty {
                     if (isAutofillCertain(ic_->surroundingText()))
                         them = 1;
 
-                    if (isGemini && same == "" &&
-                        isOnlySingleWordBeforeCursor(ic_) &&
-                        !isAutofillCertain(ic_->surroundingText())) {
-                        ic_->deleteSurroundingText(-(fcitx::utf8::length(Adif)),
-                                                   (fcitx::utf8::length(Adif)));
-                        ic_->commitString(Bdif);
-                        expected_backspaces_ = 0;
-                        current_backspace_count_ = -1;
-                        pending_commit_string_ = "";
-                        is_deleting_.store(0);
-                        return;
-                    }
                     if (is_deleting_.load() == 1) {
                         is_deleting_.store(0);
                     }
@@ -668,7 +572,9 @@ class VMKState final : public InputContextProperty {
             current_backspace_count_ = -1;
             expected_backspaces_ = 0;
         }
-        if (Y.load() == 1 && (E == 1 || E == 2 || E == 4)) {
+        if (Y.load() == 1 &&
+            (E == fcitx::VMKMode::VMK1 || E == fcitx::VMKMode::VMK2 ||
+             E == fcitx::VMKMode::VMK1HC)) {
             oldPreBuffer_.clear();
             history_.clear();
             ResetEngine(vmkEngine_.handle());
@@ -680,11 +586,17 @@ class VMKState final : public InputContextProperty {
             keyEvent.rawKey().check(FcitxKey_Shift_R))
             return;
         const fcitx::KeySym currentSym = keyEvent.rawKey().sym();
-        if (E == 1) {
+
+        switch (E) {
+        case fcitx::VMKMode::VMK1: {
             handleUinputMode(keyEvent, currentSym, true);
-        } else if (E == 4) {
+            break;
+        }
+        case fcitx::VMKMode::VMK1HC: {
             handleUinputMode(keyEvent, currentSym, false);
-        } else if (E == 2) {
+            break;
+        }
+        case fcitx::VMKMode::VMK2: {
             auto ic = keyEvent.inputContext();
             if (!ic)
                 return;
@@ -714,9 +626,15 @@ class VMKState final : public InputContextProperty {
                 } else
                     oldPreBuffer_.clear();
             }
-            return;
-        } else if (E == 3) {
+            break;
+        }
+        case fcitx::VMKMode::Preedit: {
             handlePreeditMode(keyEvent);
+            break;
+        }
+        default: {
+            break;
+        }
         }
     }
 
@@ -729,22 +647,32 @@ class VMKState final : public InputContextProperty {
         current_thread_id_.store(0);
         history_.clear();
 
-        if (E == 3) {
+        switch (E) {
+        case fcitx::VMKMode::Preedit: {
             ic_->inputPanel().reset();
             if (vmkEngine_)
                 ResetEngine(vmkEngine_.handle());
             ic_->updateUserInterface(UserInterfaceComponent::InputPanel);
             ic_->updatePreedit();
+            break;
         }
-        if (E == 2 || E == 1 || E == 4) {
+        case fcitx::VMKMode::VMK2:
+        case fcitx::VMKMode::VMK1:
+        case fcitx::VMKMode::VMK1HC: {
             ic_->inputPanel().reset();
             if (vmkEngine_)
                 ResetEngine(vmkEngine_.handle());
+            break;
+        }
+        default: {
+            break;
+        }
         }
     }
 
     void commitBuffer() {
-        if (E == 3) {
+        switch (E) {
+        case fcitx::VMKMode::Preedit: {
             ic_->inputPanel().reset();
             if (vmkEngine_) {
                 EngineCommitPreedit(vmkEngine_.handle());
@@ -754,10 +682,16 @@ class VMKState final : public InputContextProperty {
             }
             ic_->updateUserInterface(UserInterfaceComponent::InputPanel);
             ic_->updatePreedit();
+            break;
         }
-        if (E == 2) {
+        case fcitx::VMKMode::VMK2: {
             if (vmkEngine_)
                 ResetEngine(vmkEngine_.handle());
+            break;
+        }
+        default: {
+            break;
+        }
         }
     }
 
@@ -875,7 +809,7 @@ vmkEngine::vmkEngine(Instance *instance)
     auto &uiManager = instance_->userInterfaceManager();
     modeAction_ = std::make_unique<SimpleAction>();
     modeAction_->setIcon("preferences-system");
-    modeAction_->setShortText("Mode");
+    modeAction_->setShortText(_("Chế độ gõ"));
     uiManager.registerAction("vmk-mode", modeAction_.get());
     modeMenu_ = std::make_unique<Menu>();
     modeAction_->setMenu(modeMenu_.get());
@@ -888,16 +822,19 @@ vmkEngine::vmkEngine(Instance *instance)
         uiManager.registerAction("vmk-mode-" + mId, action.get());
         connections_.emplace_back(action->connect<SimpleAction::Activated>(
             [this, mId](InputContext *ic) {
-                if (config_.mode.value() == mId)
+                if (config_.mode.value() == mId) {
                     return;
+                }
+
                 config_.mode.setValue(mId);
                 saveConfig();
-                E = modeStringToInt(mId);
+                E = fcitx::modeStringToEnum(mId);
                 reloadConfig();
                 updateModeAction(ic);
-                if (ic)
+                if (ic) {
                     ic->updateUserInterface(
                         fcitx::UserInterfaceComponent::StatusArea);
+                }
             }));
         modeMenu_->addAction(action.get());
         modeSubAction_.push_back(std::move(action));
@@ -910,12 +847,7 @@ vmkEngine::vmkEngine(Instance *instance)
     inputMethodMenu_ = std::make_unique<Menu>();
     inputMethodAction_->setMenu(inputMethodMenu_.get());
 
-    // const std::vector<std::string_view> allowedIMs = {"Telex", "VNI", "Telex
-    // W"};
     for (const auto &imName : imNames_) {
-        // bool isAllowed = false;
-        // for (const auto &allowedName : allowedIMs) if (imName == allowedName)
-        // { isAllowed = true; break; } if (!isAllowed) continue;
         inputMethodSubAction_.emplace_back(std::make_unique<SimpleAction>());
         auto action = inputMethodSubAction_.back().get();
         action->setShortText(imName);
@@ -945,12 +877,7 @@ vmkEngine::vmkEngine(Instance *instance)
     charsetAction_->setMenu(charsetMenu_.get());
 
     auto charsets = convertToStringList(GetCharsetNames());
-    // const std::vector<std::string_view> allowedCharsets = {"Unicode", "TCVN3
-    // (ABC)", "VNI Windows"};
     for (const auto &charset : charsets) {
-        // bool isAllowed = false;
-        // for (const auto &allowedName : allowedCharsets) if (charset ==
-        // allowedName) { isAllowed = true; break; } if (!isAllowed) continue;
         charsetSubAction_.emplace_back(std::make_unique<SimpleAction>());
         auto action = charsetSubAction_.back().get();
         action->setShortText(charset);
@@ -1060,6 +987,7 @@ vmkEngine::vmkEngine(Instance *instance)
     uiManager.registerAction("vmk-freemarking", freeMarkingAction_.get());
 
     reloadConfig();
+    updateModeAction(nullptr);
     instance_->inputContextManager().registerProperty("VMKState", &factory_);
 
     std::string configDir =
@@ -1142,33 +1070,27 @@ void vmkEngine::activate(const InputMethodEntry &entry,
     if (!mouseThreadStarted.exchange(true))
         startMouseReset();
 
-    // Detect Gemini
-    auto state = ic->propertyFor(&factory_);
-    isGemini = state->isChromeRichText(ic);
-
     auto &statusArea = event.inputContext()->statusArea();
     if (ic->capabilityFlags().test(fcitx::CapabilityFlag::Preedit))
         instance_->inputContextManager().setPreeditEnabledByDefault(true);
 
     // ibus-bamboo mode save/load
     std::string appName = ic->program();
-    std::string targetMode;
+    fcitx::VMKMode targetMode;
 
     if (!appRules_.empty() && appRules_.count(appName)) {
         targetMode = appRules_[appName];
     } else {
-        targetMode = config_.mode.value();
+        targetMode = modeStringToEnum(config_.mode.value());
     }
-
-    int newE = modeStringToInt(targetMode);
-
     reloadConfig();
     updateModeAction(event.inputContext());
     updateInputMethodAction(event.inputContext());
     updateCharsetAction(event.inputContext());
 
-    E = newE;
-    modeAction_->setShortText(targetMode);
+    E = targetMode;
+
+    auto state = ic->propertyFor(&factory_);
 
     state->clearAllBuffers();
     is_deleting_.store(0);
@@ -1209,20 +1131,20 @@ void vmkEngine::keyEvent(const InputMethodEntry &entry, KeyEvent &keyEvent) {
             return;
 
         keyEvent.filterAndAccept();
-        std::string selectedMode = "";
+        fcitx::VMKMode selectedMode = fcitx::VMKMode::NoMode;
         bool selectionMade = false;
 
         // map number key to mode
         if (keyEvent.key().check(FcitxKey_1))
-            selectedMode = "vmk1";
+            selectedMode = fcitx::VMKMode::VMK1;
         else if (keyEvent.key().check(FcitxKey_2))
-            selectedMode = "vmk2";
+            selectedMode = fcitx::VMKMode::VMK2;
         else if (keyEvent.key().check(FcitxKey_3))
-            selectedMode = "vmkpre";
+            selectedMode = fcitx::VMKMode::Preedit;
         else if (keyEvent.key().check(FcitxKey_4))
-            selectedMode = "vmk1hc";
+            selectedMode = fcitx::VMKMode::VMK1HC;
         else if (keyEvent.key().check(FcitxKey_5))
-            selectedMode = "Off";
+            selectedMode = fcitx::VMKMode::Off;
         else if (keyEvent.key().check(FcitxKey_6)) {
             if (appRules_.count(currentConfigureApp_)) {
                 appRules_.erase(currentConfigureApp_);
@@ -1241,13 +1163,11 @@ void vmkEngine::keyEvent(const InputMethodEntry &entry, KeyEvent &keyEvent) {
             return;
         }
 
-        if (!selectedMode.empty()) {
+        if (selectedMode != fcitx::VMKMode::NoMode) {
             appRules_[currentConfigureApp_] = selectedMode;
             saveAppRules();
 
-            E = modeStringToInt(selectedMode);
-
-            modeAction_->setShortText(selectedMode);
+            E = selectedMode;
             selectionMade = true;
         }
 
@@ -1283,7 +1203,7 @@ void vmkEngine::reset(const InputMethodEntry &entry, InputContextEvent &event) {
 void vmkEngine::deactivate(const InputMethodEntry &entry,
                            InputContextEvent &event) {
     auto state = event.inputContext()->propertyFor(&factory_);
-    if (E == 3) {
+    if (E == fcitx::VMKMode::Preedit) {
         if (event.type() != EventType::InputContextFocusOut)
             state->commitBuffer();
         else
@@ -1326,15 +1246,17 @@ void vmkEngine::refreshOption() {
 }
 
 void vmkEngine::updateModeAction(InputContext *ic) {
-    std::string currentMode = config_.mode.value();
+    std::string currentModeStr = config_.mode.value();
+    E = fcitx::modeStringToEnum(currentModeStr);
+
     for (const auto &action : modeSubAction_) {
-        action->setChecked(action->name() == "vmk-mode-" + currentMode);
+        action->setChecked(action->name() == "vmk-mode-" + currentModeStr);
         if (ic)
             action->update(ic);
     }
-    E = modeStringToInt(currentMode);
+    modeAction_->setLongText(_("Chế độ gõ: ") + currentModeStr);
+
     if (ic) {
-        modeAction_->setLongText("Chế độ: " + currentMode);
         modeAction_->update(ic);
     }
 }
@@ -1432,8 +1354,8 @@ void vmkEngine::loadAppRules() {
         auto delimiterPos = line.find('=');
         if (delimiterPos != std::string::npos) {
             std::string app = line.substr(0, delimiterPos);
-            std::string mode = line.substr(delimiterPos + 1);
-            appRules_[app] = mode;
+            std::string modeStr = line.substr(delimiterPos + 1);
+            appRules_[app] = fcitx::modeStringToEnum(modeStr);
         }
     }
     file.close();
@@ -1446,7 +1368,8 @@ void vmkEngine::saveAppRules() {
 
     file << "# VMK Per-App Configuration\n";
     for (const auto &pair : appRules_) {
-        file << pair.first << "=" << pair.second << "\n";
+        std::string modeStr = fcitx::modeEnumToString(pair.second);
+        file << pair.first << "=" << modeStr << "\n";
     }
     file.close();
 }
@@ -1464,14 +1387,14 @@ void vmkEngine::showAppModeMenu(InputContext *ic) {
     candidateList->setLayoutHint(CandidateLayoutHint::Vertical);
     candidateList->setPageSize(7);
 
-    std::string currentAppRules = "";
+    fcitx::VMKMode currentAppRules = fcitx::VMKMode::Off;
     if (appRules_.count(currentConfigureApp_)) {
         currentAppRules = appRules_[currentConfigureApp_];
     } else {
-        currentAppRules = config_.mode.value();
+        currentAppRules = fcitx::modeStringToEnum(config_.mode.value());
     }
 
-    auto getLabel = [&](const std::string &modeName,
+    auto getLabel = [&](const fcitx::VMKMode &modeName,
                         const std::string &modeLabel) {
         if (modeName == currentAppRules) {
             return Text(modeLabel + " (Mặc định)");
@@ -1483,15 +1406,15 @@ void vmkEngine::showAppModeMenu(InputContext *ic) {
     candidateList->append(std::make_unique<DisplayOnlyCandidateWord>(
         Text("Tên app nhận diện được bởi fcitx5: " + currentConfigureApp_)));
     candidateList->append(std::make_unique<DisplayOnlyCandidateWord>(
-        getLabel("vmk1", "1. Fake backspace by Uinput")));
+        getLabel(fcitx::VMKMode::VMK1, "1. Fake backspace by Uinput")));
     candidateList->append(std::make_unique<DisplayOnlyCandidateWord>(
-        getLabel("vmk2", "2. Surrounding Text")));
+        getLabel(fcitx::VMKMode::VMK2, "2. Surrounding Text")));
     candidateList->append(std::make_unique<DisplayOnlyCandidateWord>(
-        getLabel("vmkpre", "3. Preedit")));
+        getLabel(fcitx::VMKMode::Preedit, "3. Preedit")));
     candidateList->append(std::make_unique<DisplayOnlyCandidateWord>(
-        getLabel("vmk1hc", "4. VMK1HC")));
+        getLabel(fcitx::VMKMode::VMK1HC, "4. VMK1HC")));
     candidateList->append(std::make_unique<DisplayOnlyCandidateWord>(
-        getLabel("Off", "5. OFF - Tắt bộ gõ")));
+        getLabel(fcitx::VMKMode::Off, "5. OFF - Tắt bộ gõ")));
     candidateList->append(std::make_unique<DisplayOnlyCandidateWord>(
         Text("6. Xóa thiết lập cho app")));
     candidateList->append(std::make_unique<DisplayOnlyCandidateWord>(
