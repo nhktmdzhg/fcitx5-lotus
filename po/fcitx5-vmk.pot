@@ -17,114 +17,114 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: src/vmk-config.h:108
+#: src/vmk-config.h:116
 msgid "Key"
 msgstr ""
 
-#: src/vmk-config.h:108
+#: src/vmk-config.h:116
 msgid "Value"
 msgstr ""
 
-#: src/vmk-config.h:112
+#: src/vmk-config.h:120
 msgid "Macro"
 msgstr ""
 
-#: src/vmk-config.h:116
+#: src/vmk-config.h:124 src/vmk-config.h:138
 msgid "Custom Keymap"
 msgstr ""
 
-#: src/vmk-config.h:121
+#: src/vmk-config.h:129
 msgid "Mode"
 msgstr ""
 
-#: src/vmk-config.h:123
+#: src/vmk-config.h:131
 msgid "Input Method"
 msgstr ""
 
-#: src/vmk-config.h:124
+#: src/vmk-config.h:132
 msgid "Output Charset"
 msgstr ""
 
-#: src/vmk-config.h:125 src/vmk.cpp:806
+#: src/vmk-config.h:133 src/vmk.cpp:854
 msgid "Enable spell check"
 msgstr ""
 
-#: src/vmk-config.h:125 src/vmk.cpp:818
+#: src/vmk-config.h:133 src/vmk.cpp:866
 msgid "Enable Macro"
 msgstr ""
 
-#: src/vmk-config.h:126 src/vmk.cpp:830
+#: src/vmk-config.h:134 src/vmk.cpp:878
 msgid "Capitalize Macro"
 msgstr ""
 
-#: src/vmk-config.h:127 src/vmk.cpp:842
+#: src/vmk-config.h:135 src/vmk.cpp:890
 msgid "Auto restore keys with invalid words"
 msgstr ""
 
-#: src/vmk-config.h:128 src/vmk.cpp:854
+#: src/vmk-config.h:136 src/vmk.cpp:902
 msgid "Use oà, _uý (instead of òa, úy)"
 msgstr ""
 
-#: src/vmk-config.h:129 src/vmk.cpp:866
+#: src/vmk-config.h:137 src/vmk.cpp:914
 msgid "Allow type with more freedom"
 msgstr ""
 
-#: src/vmk.cpp:721
+#: src/vmk.cpp:769
 msgid "Typing Mode"
 msgstr ""
 
-#: src/vmk.cpp:778
+#: src/vmk.cpp:826
 msgid "Charset"
 msgstr ""
 
-#: src/vmk.cpp:1136
+#: src/vmk.cpp:1184
 msgid "Typing Mode: "
 msgstr ""
 
-#: src/vmk.cpp:1167
+#: src/vmk.cpp:1215
 msgid "Spell Check: On"
 msgstr ""
 
-#: src/vmk.cpp:1167
+#: src/vmk.cpp:1215
 msgid "Spell Check: Off"
 msgstr ""
 
-#: src/vmk.cpp:1175
+#: src/vmk.cpp:1223
 msgid "Macro: On"
 msgstr ""
 
-#: src/vmk.cpp:1175
+#: src/vmk.cpp:1223
 msgid "Macro: Off"
 msgstr ""
 
-#: src/vmk.cpp:1183
+#: src/vmk.cpp:1231
 msgid "Capitalize Macro: On"
 msgstr ""
 
-#: src/vmk.cpp:1183
+#: src/vmk.cpp:1231
 msgid "Capitalize Macro: Off"
 msgstr ""
 
-#: src/vmk.cpp:1191
+#: src/vmk.cpp:1239
 msgid "Auto Non-VN Restore: On"
 msgstr ""
 
-#: src/vmk.cpp:1191
+#: src/vmk.cpp:1239
 msgid "Auto Non-VN Restore: Off"
 msgstr ""
 
-#: src/vmk.cpp:1199
+#: src/vmk.cpp:1247
 msgid "Modern Style: On"
 msgstr ""
 
-#: src/vmk.cpp:1199
+#: src/vmk.cpp:1247
 msgid "Modern Style: Off"
 msgstr ""
 
-#: src/vmk.cpp:1207
+#: src/vmk.cpp:1255
 msgid "Free Marking: On"
 msgstr ""
 
-#: src/vmk.cpp:1207
+#: src/vmk.cpp:1255
 msgid "Free Marking: Off"
 msgstr ""
