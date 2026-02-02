@@ -11,6 +11,7 @@
 
 #include "bamboo-core.h"
 #include "vmk-config.h"
+#include "emoji.h"
 #include <fcitx-config/iniparser.h>
 #include <fcitx-utils/i18n.h>
 #include <fcitx/action.h>
@@ -148,10 +149,13 @@ namespace fcitx {
         void updateCharsetAction(InputContext* ic);
         void populateConfig();
         // ibus-bamboo mode save/load
-        void loadAppRules();
-        void saveAppRules();
-        void showAppModeMenu(InputContext* ic);
-        void closeAppModeMenu();
+        void         loadAppRules();
+        void         saveAppRules();
+        void         showAppModeMenu(InputContext* ic);
+        void         closeAppModeMenu();
+        EmojiLoader& emojiLoader() {
+            return emojiLoader_;
+        }
 
       private:
         bool                                              freeMarkingValue_ = true;
@@ -189,6 +193,7 @@ namespace fcitx {
         bool                                            isSelectingAppMode_ = false;
         std::string                                     currentConfigureApp_;
         VMKMode                                         globalMode_;
+        EmojiLoader                                     emojiLoader_;
     };
 
     class vmkFactory : public AddonFactory {

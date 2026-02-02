@@ -25,7 +25,8 @@ namespace fcitx {
         VMK2    = 2,
         Preedit = 3,
         VMK1HC  = 4,
-        NoMode  = 5
+        NoMode  = 5,
+        Emoji   = 6,
     };
 
     // Convert mode enum to string for UI display
@@ -36,6 +37,7 @@ namespace fcitx {
             case VMKMode::VMK2: return "vmk2";
             case VMKMode::Preedit: return "vmkpre";
             case VMKMode::VMK1HC: return "vmk1hc";
+            case VMKMode::Emoji: return "emoji";
             default: return "";
         }
     }
@@ -52,6 +54,8 @@ namespace fcitx {
             return VMKMode::VMK1HC;
         else if (mode == "Off")
             return VMKMode::Off;
+        else if (mode == "emoji")
+            return VMKMode::Emoji;
         else
             return VMKMode::NoMode;
     }
@@ -70,7 +74,7 @@ namespace fcitx {
         }
         void dumpDescription(RawConfig& config) const {
             EnumAnnotation::dumpDescription(config);
-            for (size_t i = 0; i < list_.size(); i++) {
+            for (size_t i = 0; i < list_.size(); ++i) {
                 config.setValueByPath("Enum/" + std::to_string(i), list_[i]);
             }
         }

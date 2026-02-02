@@ -374,6 +374,187 @@ namespace fcitx {
             ic_->updateUserInterface(UserInterfaceComponent::InputPanel);
         }
 
+        // Helper function for emoji mode
+        void handleEmojiMode(KeyEvent& keyEvent) {
+            uint32_t modifierMask = static_cast<uint32_t>(KeyState::Ctrl) | static_cast<uint32_t>(KeyState::Alt) | static_cast<uint32_t>(KeyState::Super);
+            if (static_cast<uint32_t>(keyEvent.key().states()) & modifierMask) {
+                keyEvent.forward();
+                return;
+            }
+
+            const fcitx::KeySym currentSym = keyEvent.rawKey().sym();
+
+            auto                baseList   = ic_->inputPanel().candidateList();
+            auto                commonList = std::dynamic_pointer_cast<CommonCandidateList>(baseList);
+            if (commonList && currentSym >= FcitxKey_1 && currentSym <= FcitxKey_9) {
+                int offset      = currentSym - FcitxKey_1;
+                int globalIndex = commonList->currentPage() * commonList->pageSize() + offset;
+
+                if (globalIndex < (int)commonList->totalSize()) {
+                    commonList->candidateFromAll(globalIndex).select(ic_);
+                    keyEvent.filterAndAccept();
+                    return;
+                }
+            }
+
+            if (commonList && !commonList->empty()) {
+                int  globalCursorIndex = commonList->globalCursorIndex();
+                int  totalSize         = commonList->totalSize();
+                int  currentPage       = commonList->currentPage();
+                int  pageSize          = commonList->pageSize();
+                int  localCursorIndex  = globalCursorIndex - currentPage * pageSize;
+
+                bool handled = false;
+
+                if (currentSym == FcitxKey_Tab || currentSym == FcitxKey_Down) {
+                    if (globalCursorIndex == totalSize - 1) {
+                        commonList->setGlobalCursorIndex(globalCursorIndex);
+                    } else if (localCursorIndex < pageSize - 1) {
+                        commonList->setGlobalCursorIndex(globalCursorIndex + 1);
+                    } else {
+                        commonList->next();
+                        int newPage = commonList->currentPage();
+                        commonList->setGlobalCursorIndex(newPage * pageSize);
+                    }
+                    handled = true;
+                } else if (currentSym == FcitxKey_ISO_Left_Tab || currentSym == FcitxKey_Up) {
+                    if (globalCursorIndex == 0) {
+                        commonList->setGlobalCursorIndex(globalCursorIndex);
+                    } else if (localCursorIndex > 0) {
+                        commonList->setGlobalCursorIndex(globalCursorIndex - 1);
+                    } else {
+                        commonList->prev();
+                        int newPage  = commonList->currentPage();
+                        int newIndex = newPage * pageSize + pageSize - 1;
+                        commonList->setGlobalCursorIndex(newIndex);
+                    }
+                    handled = true;
+                } else if (currentSym == FcitxKey_Page_Down || currentSym == FcitxKey_Right) {
+                    if (commonList->hasNext()) {
+                        commonList->next();
+                        int newPage = commonList->currentPage();
+                        commonList->setGlobalCursorIndex(newPage * pageSize);
+                        handled = true;
+                    }
+                } else if (currentSym == FcitxKey_Page_Up || currentSym == FcitxKey_Left) {
+                    if (commonList->hasPrev()) {
+                        commonList->prev();
+                        int newPage = commonList->currentPage();
+                        commonList->setGlobalCursorIndex(newPage * pageSize);
+                        handled = true;
+                    }
+                }
+
+                if (handled) {
+                    ic_->updateUserInterface(UserInterfaceComponent::InputPanel);
+                    keyEvent.filterAndAccept();
+                    return;
+                }
+            }
+
+            if (isBackspace(currentSym)) {
+                if (!emojiBuffer_.empty()) {
+                    emojiBuffer_.pop_back();
+                    while (!emojiBuffer_.empty() && (emojiBuffer_.back() & 0xC0) == 0x80) {
+                        emojiBuffer_.pop_back();
+                    }
+                    keyEvent.filterAndAccept();
+                } else {
+                    keyEvent.forward();
+                }
+                updateEmojiPreedit();
+                return;
+            }
+
+            if (currentSym == FcitxKey_space || currentSym == FcitxKey_Return) {
+                if (commonList && !commonList->empty()) {
+                    int globalIdx = commonList->globalCursorIndex();
+
+                    commonList->candidateFromAll(globalIdx).select(ic_);
+
+                    keyEvent.filterAndAccept();
+                } else if (currentSym == FcitxKey_Return && !emojiBuffer_.empty()) {
+                    ic_->commitString(emojiBuffer_);
+                    emojiBuffer_.clear();
+                    ic_->inputPanel().reset();
+                    ic_->updateUserInterface(UserInterfaceComponent::InputPanel);
+                    keyEvent.filterAndAccept();
+                } else {
+                    keyEvent.forward();
+                }
+                return;
+            }
+
+            if (currentSym == FcitxKey_Escape) {
+                emojiBuffer_.clear();
+                emojiCandidates_.clear();
+                ic_->inputPanel().reset();
+                ic_->updateUserInterface(UserInterfaceComponent::InputPanel);
+                keyEvent.filterAndAccept();
+                return;
+            }
+
+            if (currentSym >= 32 && currentSym <= 126) {
+                emojiBuffer_ += static_cast<char>(currentSym);
+                keyEvent.filterAndAccept();
+                updateEmojiPreedit();
+            } else {
+                keyEvent.forward();
+            }
+        }
+
+        void selectEmojiCandidate(int index) {
+            if (index >= 0 && index < static_cast<int>(emojiCandidates_.size())) {
+                ic_->commitString(emojiCandidates_[index].output);
+                emojiBuffer_.clear();
+                emojiCandidates_.clear();
+                ic_->inputPanel().reset();
+                ic_->updateUserInterface(UserInterfaceComponent::InputPanel);
+            }
+        }
+
+        void updateEmojiPreedit() {
+            if (emojiBuffer_.empty()) {
+                emojiCandidates_.clear();
+                ic_->inputPanel().reset();
+                ic_->updatePreedit();
+                ic_->updateUserInterface(UserInterfaceComponent::InputPanel);
+                return;
+            }
+
+            emojiCandidates_ = engine_->emojiLoader().search(emojiBuffer_);
+
+            if (!emojiBuffer_.empty()) {
+                Text preeditText;
+                preeditText.append(emojiBuffer_, TextFormatFlag::Underline);
+                preeditText.setCursor(preeditText.textLength());
+                if (ic_->capabilityFlags().test(CapabilityFlag::Preedit))
+                    ic_->inputPanel().setClientPreedit(preeditText);
+                else
+                    ic_->inputPanel().setPreedit(preeditText);
+            }
+
+            if (!emojiCandidates_.empty()) {
+                auto candidateList = std::make_unique<CommonCandidateList>();
+                candidateList->setLayoutHint(CandidateLayoutHint::Vertical);
+                candidateList->setPageSize(9);
+
+                for (int i = 0; i < emojiCandidates_.size(); ++i) {
+                    int  localIndex = i % 9 + 1;
+                    Text displayLabel(std::to_string(localIndex) + ": " + emojiCandidates_[i].trigger + " " + emojiCandidates_[i].output);
+                    candidateList->append(std::make_unique<EmojiCandidateWord>(displayLabel, this, emojiCandidates_[i].output));
+                }
+                candidateList->setCursorIndex(0);
+
+                ic_->inputPanel().setCandidateList(std::move(candidateList));
+            } else {
+                ic_->inputPanel().setCandidateList(nullptr);
+            }
+
+            ic_->updatePreedit();
+            ic_->updateUserInterface(UserInterfaceComponent::InputPanel);
+        }
+
         void performReplacement(const std::string& deletedPart, const std::string& addedPart) {
             current_backspace_count_ = 0;
             pending_commit_string_   = addedPart;
@@ -604,6 +785,10 @@ namespace fcitx {
                     handlePreeditMode(keyEvent);
                     break;
                 }
+                case fcitx::VMKMode::Emoji: {
+                    handleEmojiMode(keyEvent);
+                    break;
+                }
                 default: {
                     break;
                 }
@@ -625,6 +810,14 @@ namespace fcitx {
                 case fcitx::VMKMode::VMK1:
                 case fcitx::VMKMode::VMK1HC: {
                     ic_->inputPanel().reset();
+                    break;
+                }
+                case fcitx::VMKMode::Emoji: {
+                    emojiBuffer_.clear();
+                    emojiCandidates_.clear();
+                    ic_->inputPanel().reset();
+                    ic_->updateUserInterface(UserInterfaceComponent::InputPanel);
+                    ic_->updatePreedit();
                     break;
                 }
                 default: {
@@ -665,11 +858,29 @@ namespace fcitx {
             pending_commit_string_.clear();
             current_thread_id_.store(0);
             history_.clear();
+            emojiBuffer_.clear();
+            emojiCandidates_.clear();
             if (vmkEngine_)
                 ResetEngine(vmkEngine_.handle());
         }
 
       private:
+        struct EmojiCandidateWord : public CandidateWord {
+            VMKState*   state_;
+            std::string emojiOutput_;
+            EmojiCandidateWord(Text text, VMKState* state, const std::string& emojiOutput) : CandidateWord(std::move(text)), state_(state), emojiOutput_(emojiOutput) {}
+
+            void select(InputContext* inputContext) const override {
+                state_->ic_->commitString(emojiOutput_);
+
+                state_->emojiBuffer_.clear();
+                state_->emojiCandidates_.clear();
+
+                state_->ic_->inputPanel().reset();
+                state_->ic_->updateUserInterface(UserInterfaceComponent::InputPanel);
+                state_->ic_->updatePreedit();
+            }
+        };
         vmkEngine*       engine_;
         InputContext*    ic_;
         CGoObject        vmkEngine_;
@@ -679,6 +890,9 @@ namespace fcitx {
         size_t           current_backspace_count_ = 0;
         std::string      pending_commit_string_;
         std::atomic<int> current_thread_id_{0};
+        // Emoji mode variables
+        std::string             emojiBuffer_;
+        std::vector<EmojiEntry> emojiCandidates_;
     };
 
     void mousePressResetThread() {
@@ -1081,6 +1295,9 @@ namespace fcitx {
                     saveAppRules();
                 }
                 selectionMade = true;
+            } else if (keyEvent.key().check(FcitxKey_7)) {
+                selectedMode  = fcitx::VMKMode::Emoji;
+                selectionMade = true;
             } else if (keyEvent.key().check(FcitxKey_Escape)) {
                 selectionMade = true;
             } else if (keyEvent.key().check(FcitxKey_grave)) {
@@ -1094,8 +1311,10 @@ namespace fcitx {
             }
 
             if (selectedMode != fcitx::VMKMode::NoMode) {
-                appRules_[currentConfigureApp_] = selectedMode;
-                saveAppRules();
+                if (selectedMode != fcitx::VMKMode::Emoji) {
+                    appRules_[currentConfigureApp_] = selectedMode;
+                    saveAppRules();
+                }
 
                 realMode      = selectedMode;
                 selectionMade = true;
@@ -1301,7 +1520,7 @@ namespace fcitx {
         auto candidateList = std::make_unique<CommonCandidateList>();
 
         candidateList->setLayoutHint(CandidateLayoutHint::Vertical);
-        candidateList->setPageSize(7);
+        candidateList->setPageSize(10);
 
         fcitx::VMKMode currentAppRules = fcitx::VMKMode::Off;
         if (appRules_.count(currentConfigureApp_)) {
@@ -1325,6 +1544,7 @@ namespace fcitx {
         candidateList->append(std::make_unique<DisplayOnlyCandidateWord>(getLabel(fcitx::VMKMode::VMK1HC, "4. VMK1HC")));
         candidateList->append(std::make_unique<DisplayOnlyCandidateWord>(getLabel(fcitx::VMKMode::Off, "5. OFF - Disable Input Method")));
         candidateList->append(std::make_unique<DisplayOnlyCandidateWord>(Text("6. Remove app settings")));
+        candidateList->append(std::make_unique<DisplayOnlyCandidateWord>(Text("7. Emoji mode")));
         candidateList->append(std::make_unique<DisplayOnlyCandidateWord>(Text("`. Close menu and type `")));
 
         ic->inputPanel().reset();

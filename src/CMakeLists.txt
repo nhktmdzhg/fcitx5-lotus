@@ -12,7 +12,10 @@ target_link_libraries(vmk
 	X11::X11
 )
 
-target_include_directories(vmk PRIVATE ${PROJECT_BINARY_DIR})
+target_include_directories(vmk PRIVATE
+    ${PROJECT_BINARY_DIR}
+    ${PROJECT_SOURCE_DIR}/data/emoji
+)
 install(TARGETS vmk DESTINATION "${CMAKE_INSTALL_LIBDIR}/fcitx5")
 
 fcitx5_translate_desktop_file(vmk.conf.in vmk.conf)
