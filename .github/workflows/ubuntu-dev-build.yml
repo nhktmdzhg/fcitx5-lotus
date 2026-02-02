@@ -1,0 +1,64 @@
+name: Build VMK (Dev Branch)
+
+on:
+  push:
+    branches:
+      - dev
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: 'Thích thì build thôi'
+        required: false
+        default: 'Manual build'
+
+jobs:
+  build:
+    name: Build on Ubuntu 22.04 (Dev)
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            cmake \
+            extra-cmake-modules \
+            libfcitx5core-dev \
+            libfcitx5config-dev \
+            libfcitx5utils-dev \
+            libinput-dev \
+            libudev-dev \
+            g++ \
+            golang \
+            hicolor-icon-theme \
+            pkg-config \
+            libx11-dev \
+            gettext
+
+      - name: Create tarball structure
+        run: |
+          mkdir -p dist
+          export LDFLAGS="-Wl,-z,relro -Wl,-z,now $LDFLAGS"
+          cmake -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_INSTALL_LIBDIR=/usr/lib .
+          make -j$(nproc)
+          make install DESTDIR=$(pwd)/dist
+          ls -R dist/
+
+      - name: Compress Artifact
+        run: |
+          tar -czf fcitx5-vmk-dev-${{ github.run_id }}.tar.gz -C dist .
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: vmk-dev-package
+          path: fcitx5-vmk-dev-${{ github.run_id }}.tar.gz
+          retention-days: 7
