@@ -63,7 +63,7 @@
 #include <mutex>
 #endif
 
-fcitx::VMKMode    realMode = fcitx::VMKMode::VMK1;
+fcitx::VMKMode    realMode = fcitx::VMKMode::VMKSmooth;
 std::atomic<bool> needEngineReset{false};
 std::string       BASE_SOCKET_PATH;
 // Global flag to signal mouse click for closing app mode menu
@@ -291,14 +291,11 @@ namespace fcitx {
                 return;
 
             ResetEngine(vmkEngine_.handle());
-            for (size_t i = 0; i < buffer.length();) {
-                if (i + 2 < buffer.length() && buffer.substr(i, 3) == "\\b\\") {
+            for (char raw_char : buffer) {
+                if (raw_char == 0x07) {
                     EngineProcessKeyEvent(vmkEngine_.handle(), FcitxKey_BackSpace, 0);
-                    i += 3;
                 } else {
-                    unsigned char c = static_cast<unsigned char>(buffer[i]);
-                    EngineProcessKeyEvent(vmkEngine_.handle(), (uint32_t)c, 0);
-                    i += 1;
+                    EngineProcessKeyEvent(vmkEngine_.handle(), (uint32_t)raw_char, 0);
                 }
             }
         }
@@ -548,7 +545,7 @@ namespace fcitx {
             ic_->updateUserInterface(UserInterfaceComponent::InputPanel);
         }
 
-        bool handleUInputKeyPress(KeyEvent& event, KeySym currentSym) {
+        bool handleUInputKeyPress(KeyEvent& event, KeySym currentSym, int sleepTime) {
             if (!is_deleting_.load()) {
                 return false;
             }
@@ -558,7 +555,7 @@ namespace fcitx {
                     return false;
                 } else {
                     is_deleting_.store(false);
-                    std::this_thread::sleep_for(std::chrono::milliseconds(5));
+                    std::this_thread::sleep_for(std::chrono::milliseconds(sleepTime));
                     ic_->commitString(pending_commit_string_);
                     expected_backspaces_     = 0;
                     current_backspace_count_ = -1;
@@ -623,11 +620,11 @@ namespace fcitx {
             }
         }
 
-        // Helper function for vmk1/vmk1hc mode
-        void handleUinputMode(KeyEvent& keyEvent, KeySym currentSym, bool checkEmptyPreedit) {
+        // Helper function for vmk1/vmk1hc/vmksmooth mode
+        void handleUinputMode(KeyEvent& keyEvent, KeySym currentSym, bool checkEmptyPreedit, int sleepTime) {
             if (is_deleting_.load(std::memory_order_acquire)) {
                 if (isBackspace(currentSym)) {
-                    if (handleUInputKeyPress(keyEvent, currentSym)) {
+                    if (handleUInputKeyPress(keyEvent, currentSym, sleepTime)) {
                         return;
                     }
                 } else {
@@ -648,7 +645,7 @@ namespace fcitx {
 
             if (isBackspace(currentSym) || currentSym == FcitxKey_Return) {
                 if (isBackspace(currentSym)) {
-                    history_ += "\\b\\";
+                    history_.push_back(static_cast<char>(0x07));
                     replayBufferToEngine(history_);
                     UniqueCPtr<char> preeditC(EnginePullPreedit(vmkEngine_.handle()));
                     oldPreBuffer_ = (preeditC && preeditC.get()[0]) ? preeditC.get() : "";
@@ -785,7 +782,7 @@ namespace fcitx {
                 current_backspace_count_ = -1;
                 expected_backspaces_     = 0;
             }
-            if (needEngineReset.load() && (realMode == VMKMode::VMK1 || realMode == VMKMode::VMK2 || realMode == VMKMode::VMK1HC)) {
+            if (needEngineReset.load() && (realMode == VMKMode::VMK1 || realMode == VMKMode::VMK2 || realMode == VMKMode::VMK1HC || realMode == VMKMode::VMKSmooth)) {
                 oldPreBuffer_.clear();
                 history_.clear();
                 ResetEngine(vmkEngine_.handle());
@@ -799,11 +796,11 @@ namespace fcitx {
 
             switch (realMode) {
                 case VMKMode::VMK1: {
-                    handleUinputMode(keyEvent, currentSym, true);
+                    handleUinputMode(keyEvent, currentSym, true, 20);
                     break;
                 }
                 case VMKMode::VMK1HC: {
-                    handleUinputMode(keyEvent, currentSym, false);
+                    handleUinputMode(keyEvent, currentSym, false, 20);
                     break;
                 }
                 case VMKMode::VMK2: {
@@ -816,6 +813,10 @@ namespace fcitx {
                 }
                 case VMKMode::Emoji: {
                     handleEmojiMode(keyEvent);
+                    break;
+                }
+                case VMKMode::VMKSmooth: {
+                    handleUinputMode(keyEvent, currentSym, true, 5);
                     break;
                 }
                 default: {
@@ -840,7 +841,8 @@ namespace fcitx {
                 }
                 case VMKMode::VMK2:
                 case VMKMode::VMK1:
-                case VMKMode::VMK1HC: {
+                case VMKMode::VMK1HC:
+                case VMKMode::VMKSmooth: {
                     ic_->inputPanel().reset();
                     break;
                 }
@@ -1022,7 +1024,7 @@ namespace fcitx {
         modeMenu_ = std::make_unique<Menu>();
         modeAction_->setMenu(modeMenu_.get());
 
-        std::vector<VMKMode> modes = {VMKMode::VMK1, VMKMode::VMK2, VMKMode::Preedit, VMKMode::VMK1HC};
+        std::vector<VMKMode> modes = {VMKMode::VMKSmooth, VMKMode::VMK1, VMKMode::VMK2, VMKMode::Preedit, VMKMode::VMK1HC};
         for (const auto& mode : modes) {
             auto action = std::make_unique<SimpleAction>();
             action->setShortText(modeEnumToString(mode));
@@ -1317,23 +1319,24 @@ namespace fcitx {
 
             // map number key to mode
             if (keyEvent.key().check(FcitxKey_1))
-                selectedMode = VMKMode::VMK1;
+                selectedMode = VMKMode::VMKSmooth;
             else if (keyEvent.key().check(FcitxKey_2))
-                selectedMode = VMKMode::VMK2;
+                selectedMode = VMKMode::VMK1;
             else if (keyEvent.key().check(FcitxKey_3))
-                selectedMode = VMKMode::Preedit;
-            else if (keyEvent.key().check(FcitxKey_4))
                 selectedMode = VMKMode::VMK1HC;
+            else if (keyEvent.key().check(FcitxKey_4))
+                selectedMode = VMKMode::VMK2;
             else if (keyEvent.key().check(FcitxKey_5))
+                selectedMode = VMKMode::Preedit;
+            else if (keyEvent.key().check(FcitxKey_6))
+                selectedMode = VMKMode::Emoji;
+            else if (keyEvent.key().check(FcitxKey_7))
                 selectedMode = VMKMode::Off;
-            else if (keyEvent.key().check(FcitxKey_6)) {
+            else if (keyEvent.key().check(FcitxKey_8)) {
                 if (appRules_.count(currentConfigureApp_)) {
                     appRules_.erase(currentConfigureApp_);
                     saveAppRules();
                 }
-                selectionMade = true;
-            } else if (keyEvent.key().check(FcitxKey_7)) {
-                selectedMode  = VMKMode::Emoji;
                 selectionMade = true;
             } else if (keyEvent.key().check(FcitxKey_Escape)) {
                 selectionMade = true;
@@ -1579,13 +1582,14 @@ namespace fcitx {
         };
 
         candidateList->append(std::make_unique<DisplayOnlyCandidateWord>(Text(_("App name detected by fcitx5: ") + currentConfigureApp_)));
-        candidateList->append(std::make_unique<DisplayOnlyCandidateWord>(getLabel(VMKMode::VMK1, _("1. Fake backspace by Uinput"))));
-        candidateList->append(std::make_unique<DisplayOnlyCandidateWord>(getLabel(VMKMode::VMK2, _("2. Surrounding Text"))));
-        candidateList->append(std::make_unique<DisplayOnlyCandidateWord>(getLabel(VMKMode::Preedit, _("3. Preedit"))));
-        candidateList->append(std::make_unique<DisplayOnlyCandidateWord>(getLabel(VMKMode::VMK1HC, _("4. Fake backspace by Uinput for wine apps"))));
-        candidateList->append(std::make_unique<DisplayOnlyCandidateWord>(getLabel(VMKMode::Off, "5. OFF - Disable Input Method")));
-        candidateList->append(std::make_unique<DisplayOnlyCandidateWord>(Text(_("6. Remove app settings"))));
-        candidateList->append(std::make_unique<DisplayOnlyCandidateWord>(Text(_("7. Emoji mode"))));
+        candidateList->append(std::make_unique<DisplayOnlyCandidateWord>(getLabel(VMKMode::VMKSmooth, _("1. Fake backspace by Uinput (smooth)"))));
+        candidateList->append(std::make_unique<DisplayOnlyCandidateWord>(getLabel(VMKMode::VMK1, _("2. Fake backspace by Uinput"))));
+        candidateList->append(std::make_unique<DisplayOnlyCandidateWord>(getLabel(VMKMode::VMK1HC, _("3. Fake backspace by Uinput for wine apps"))));
+        candidateList->append(std::make_unique<DisplayOnlyCandidateWord>(getLabel(VMKMode::VMK2, _("4. Surrounding Text"))));
+        candidateList->append(std::make_unique<DisplayOnlyCandidateWord>(getLabel(VMKMode::Preedit, _("5. Preedit"))));
+        candidateList->append(std::make_unique<DisplayOnlyCandidateWord>(Text(_("6. Emoji mode"))));
+        candidateList->append(std::make_unique<DisplayOnlyCandidateWord>(getLabel(VMKMode::Off, "7. OFF - Disable Input Method")));
+        candidateList->append(std::make_unique<DisplayOnlyCandidateWord>(Text(_("8. Remove app settings"))));
         candidateList->append(std::make_unique<DisplayOnlyCandidateWord>(Text(_("`. Close menu and type `"))));
 
         ic->inputPanel().reset();

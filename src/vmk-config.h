@@ -20,13 +20,14 @@
 namespace fcitx {
 
     enum class VMKMode {
-        Off     = 0,
-        VMK1    = 1,
-        VMK2    = 2,
-        Preedit = 3,
-        VMK1HC  = 4,
-        NoMode  = 5,
-        Emoji   = 6,
+        Off       = 0,
+        VMK1      = 1,
+        VMK2      = 2,
+        Preedit   = 3,
+        VMK1HC    = 4,
+        NoMode    = 5,
+        Emoji     = 6,
+        VMKSmooth = 7,
     };
 
     // Convert mode enum to string for UI display
@@ -38,6 +39,7 @@ namespace fcitx {
             case VMKMode::Preedit: return "vmkpre";
             case VMKMode::VMK1HC: return "vmk1hc";
             case VMKMode::Emoji: return "emoji";
+            case VMKMode::VMKSmooth: return "vmksmooth";
             default: return "";
         }
     }
@@ -56,6 +58,8 @@ namespace fcitx {
             return VMKMode::Off;
         else if (mode == "emoji")
             return VMKMode::Emoji;
+        else if (mode == "vmksmooth")
+            return VMKMode::VMKSmooth;
         else
             return VMKMode::NoMode;
     }
@@ -94,7 +98,7 @@ namespace fcitx {
     };
     struct ModeListAnnotation : public StringListAnnotation {
         ModeListAnnotation() {
-            list_ = {"vmk1", "vmk2", "vmk1hc", "vmkpre"};
+            list_ = {"vmksmooth", "vmk1", "vmk2", "vmk1hc", "vmkpre"};
         }
     };
 
@@ -130,7 +134,7 @@ namespace fcitx {
     FCITX_CONFIGURATION(
         vmkConfig,
 
-        OptionWithAnnotation<std::string, ModeListAnnotation>                                            mode{this, "Mode", _("Mode"), "vmk1", {}, {}, ModeListAnnotation()};
+        OptionWithAnnotation<std::string, ModeListAnnotation>                                            mode{this, "Mode", _("Mode"), "vmk1smooth", {}, {}, ModeListAnnotation()};
         Option<std::string, InputMethodConstrain, DefaultMarshaller<std::string>, InputMethodAnnotation> inputMethod{
             this, "InputMethod", _("Input Method"), "Telex", InputMethodConstrain(&inputMethod), {}, InputMethodAnnotation()};
         OptionWithAnnotation<std::string, StringListAnnotation> outputCharset{this, "OutputCharset", _("Output Charset"), "Unicode", {}, {}, StringListAnnotation()};
