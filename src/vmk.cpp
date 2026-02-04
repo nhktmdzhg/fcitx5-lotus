@@ -33,7 +33,6 @@
 #include <cstdlib>
 #include <cstring>
 #include <filesystem>
-#include <ostream>
 #include <stdexcept>
 #include <string>
 #include <thread>
@@ -163,31 +162,6 @@ namespace fcitx {
             }
             free(array);
             return result;
-        }
-
-        static void DeletePreviousNChars(InputContext* ic, size_t n, Instance* instance) {
-            if (!ic || !instance || n == 0)
-                return;
-            if (ic->capabilityFlags().test(CapabilityFlag::SurroundingText)) {
-                int offset = -static_cast<int>(n);
-                ic->deleteSurroundingText(offset, static_cast<int>(n));
-                return;
-            }
-            for (size_t i = 0; i < n; ++i) {
-                Key key(FcitxKey_BackSpace);
-                ic->forwardKey(key, false);
-                ic->forwardKey(key, true);
-            }
-        }
-
-        bool isValidStateCharacter(uint32_t ucs4) {
-            if ((ucs4 >= 'a' && ucs4 <= 'z') || (ucs4 >= 'A' && ucs4 <= 'Z') || (ucs4 >= '0' && ucs4 <= '9')) {
-                return true;
-            }
-            if (ucs4 >= 0xC0)
-                return true;
-
-            return false;
         }
 
         bool isWordBreak(uint32_t ucs4) {
@@ -766,14 +740,12 @@ namespace fcitx {
         void handleSurroundingText(KeyEvent& keyEvent) {
             auto ic = keyEvent.inputContext();
             if (!ic || !ic->capabilityFlags().test(CapabilityFlag::SurroundingText)) {
-                std::cout << "Don't support Surrounding Text" << std::endl;
                 keyEvent.forward();
                 return;
             }
 
             const auto& surrounding = ic->surroundingText();
             if (!surrounding.isValid()) {
-                std::cout << "Surrounding Text is not valid" << std::endl;
                 keyEvent.forward();
                 return;
             }
@@ -788,7 +760,6 @@ namespace fcitx {
             int                cursor = surrounding.cursor();
 
             size_t             textLen = utf8::lengthValidated(text);
-            std::cout << "text: " << text << " | cursor: " << cursor << " | textLen: " << textLen << std::endl;
 
             if (textLen == utf8::INVALID_LENGTH || cursor <= 0 || cursor > (int)textLen) {
                 goto process_normal;
@@ -818,8 +789,6 @@ namespace fcitx {
 
                 std::string oldWord(startIter, endIter);
 
-                std::cout << "oldWord: " << oldWord << std::endl;
-
                 if (oldWord.empty()) {
                     goto process_normal;
                 }
@@ -833,7 +802,6 @@ namespace fcitx {
                 bool processed = EngineProcessKeyEvent(vmkEngine_.handle(), keyEvent.rawKey().sym(), keyEvent.rawKey().states());
 
                 if (!processed) {
-                    std::cout << "cannot process" << std::endl;
                     keyEvent.forward();
                     ResetEngine(vmkEngine_.handle());
                     return;
@@ -848,12 +816,8 @@ namespace fcitx {
                 if (preeditPtr && preeditPtr.get()[0])
                     newWord += preeditPtr.get();
 
-                std::cout << "newWord: " << newWord << std::endl;
-
                 std::string commonPrefix, deletedPart, addedPart;
                 compareAndSplitStrings(oldWord, newWord, commonPrefix, deletedPart, addedPart);
-                std::cout << "commonPrefix: " << commonPrefix << std::endl;
-                std::cout << "deletedPart: " << deletedPart << std::endl;
                 if (deletedPart.empty() && addedPart == keyEvent.key().toString()) {
                     ResetEngine(vmkEngine_.handle());
                     keyEvent.forward();
