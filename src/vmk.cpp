@@ -8,6 +8,7 @@
  */
 #include "vmk.h"
 
+#include <cstdint>
 #include <fcitx-config/iniparser.h>
 #include <fcitx-utils/charutils.h>
 #include <fcitx-utils/event.h>
@@ -282,11 +283,11 @@ namespace fcitx {
                 return;
 
             ResetEngine(vmkEngine_.handle());
-            for (char raw_char : buffer) {
-                if (raw_char == 0x07) {
+            for (uint32_t c : fcitx::utf8::MakeUTF8CharRange(buffer)) {
+                if (c == static_cast<uint32_t>('\b')) {
                     EngineProcessKeyEvent(vmkEngine_.handle(), FcitxKey_BackSpace, 0);
                 } else {
-                    EngineProcessKeyEvent(vmkEngine_.handle(), (uint32_t)raw_char, 0);
+                    EngineProcessKeyEvent(vmkEngine_.handle(), c, 0);
                 }
             }
         }
@@ -644,7 +645,7 @@ namespace fcitx {
 
             if (isBackspace(currentSym) || currentSym == FcitxKey_Return) {
                 if (isBackspace(currentSym)) {
-                    history_.push_back(static_cast<char>(0x07));
+                    history_.push_back('\b');
                     replayBufferToEngine(history_);
                     UniqueCPtr<char> preeditC(EnginePullPreedit(vmkEngine_.handle()));
                     oldPreBuffer_ = (preeditC && preeditC.get()[0]) ? preeditC.get() : "";
@@ -754,6 +755,10 @@ namespace fcitx {
                 ResetEngine(vmkEngine_.handle());
                 keyEvent.forward();
                 return;
+            }
+
+            if (surrounding.anchor() != surrounding.cursor()) {
+                ic->deleteSurroundingText(0, 0);
             }
 
             const std::string& text   = surrounding.text();
