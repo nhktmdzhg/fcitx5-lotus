@@ -61,8 +61,8 @@ stdenv.mkDerivation rec {
   # change checking exe_path logic to make it work on NixOS since executable files on NixOS are not located in /usr/bin
   postPatch = ''
     substituteInPlace server/vmk-server.cpp \
-      --replace 'std::string(exe_path) == "/usr/bin/fcitx5"' \
-                '({ std::string p(exe_path); p.find("/nix/store/") == 0 && p.size() >= 11 && p.compare(p.size() - 11, 11, "/bin/fcitx5") == 0; })'
+      --replace 'strcmp(exe_path, "/usr/bin/fcitx5") == 0' \
+                '(strncmp(exe_path, "/nix/store/", 11) == 0 && strlen(exe_path) >= 11 && strcmp(exe_path + strlen(exe_path) - 11, "/bin/fcitx5") == 0)'
   '';
 
   postInstall = ''

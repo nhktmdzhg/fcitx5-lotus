@@ -55,10 +55,7 @@
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
 #include <X11/keysym.h>
-#include <atomic>
-#include <chrono>
 #include <cstddef>
-#include <cstdio>
 #include <fstream>
 #include <limits.h>
 #include <mutex>
@@ -82,8 +79,12 @@ int                      uinput_client_fd_ = -1;
 
 std::string              buildSocketPath(const char* base_path_suffix) {
     const char* username_c = std::getenv("USER");
-    std::string username   = username_c ? std::string(username_c) : "default";
-    std::string path       = "vmksocket-" + username + "-" + std::string(base_path_suffix);
+    std::string path;
+    path.reserve(32);
+    path += "vmksocket-";
+    path += (username_c ? username_c : "default");
+    path += '-';
+    path += base_path_suffix;
     return path;
 }
 
@@ -144,10 +145,10 @@ namespace fcitx {
         }
 
         uintptr_t newMacroTable(const vmkMacroTable& macroTable) {
+            const auto&        macros = *macroTable.macros;
             std::vector<char*> charArray;
-            RawConfig          r;
-            macroTable.save(r);
-            for (const auto& keymap : *macroTable.macros) {
+            charArray.reserve(macros.size() * 2 + 1);
+            for (const auto& keymap : macros) {
                 charArray.push_back(const_cast<char*>(keymap.key->data()));
                 charArray.push_back(const_cast<char*>(keymap.value->data()));
             }
@@ -157,8 +158,12 @@ namespace fcitx {
 
         std::vector<std::string> convertToStringList(char** array) {
             std::vector<std::string> result;
-            for (int i = 0; array[i]; ++i) {
-                result.push_back(array[i]);
+            int                      count = 0;
+            for (int i = 0; array[i]; ++i)
+                ++count;
+            result.reserve(count);
+            for (int i = 0; i < count; ++i) {
+                result.emplace_back(array[i]);
                 free(array[i]);
             }
             free(array);
@@ -187,8 +192,10 @@ namespace fcitx {
             realMode = modeStringToEnum(engine_->config().mode.value());
 
             if (engine_->config().inputMethod.value() == "Custom") {
+                const auto&        keymaps = *engine_->customKeymap().customKeymap;
                 std::vector<char*> charArray;
-                for (const auto& keymap : *engine_->customKeymap().customKeymap) {
+                charArray.reserve(keymaps.size() * 2 + 1);
+                for (const auto& keymap : keymaps) {
                     charArray.push_back(const_cast<char*>(keymap.key->data()));
                     charArray.push_back(const_cast<char*>(keymap.value->data()));
                 }
@@ -476,12 +483,15 @@ namespace fcitx {
                 default: break;
             }
 
-            if (!Key::keySymToUTF8(currentSym).empty()) {
-                emojiBuffer_ += Key::keySymToUTF8(currentSym);
-                keyEvent.filterAndAccept();
-                updateEmojiPreedit();
-            } else {
-                keyEvent.forward();
+            {
+                std::string utf8Char = Key::keySymToUTF8(currentSym);
+                if (!utf8Char.empty()) {
+                    emojiBuffer_ += utf8Char;
+                    keyEvent.filterAndAccept();
+                    updateEmojiPreedit();
+                } else {
+                    keyEvent.forward();
+                }
             }
         }
 
@@ -1131,7 +1141,7 @@ namespace fcitx {
                         }
                     }
 
-                    if (n > 0 && std::string(exe_path) == "/usr/bin/fcitx5-vmk-server") {
+                    if (n > 0 && strcmp(exe_path, "/usr/bin/fcitx5-vmk-server") == 0) {
                         needEngineReset.store(true, std::memory_order_relaxed);
                         // Also signal that mouse was clicked to close app mode menu
                         g_mouse_clicked.store(true, std::memory_order_relaxed);
@@ -1797,22 +1807,25 @@ std::string SubstrChar(const std::string& s, size_t start, size_t len) {
 }
 
 int compareAndSplitStrings(const std::string& A, const std::string& B, std::string& commonPrefix, std::string& deletedPart, std::string& addedPart) {
-    size_t lengthA     = fcitx_utf8_strlen(A.c_str());
-    size_t lengthB     = fcitx_utf8_strlen(B.c_str());
-    size_t minLength   = std::min(lengthA, lengthB);
-    size_t matchLength = 0;
-    for (size_t i = 0; i < minLength; ++i) {
-        const char*  ptrA = fcitx_utf8_get_nth_char(A.c_str(), static_cast<uint32_t>(i));
-        const char*  ptrB = fcitx_utf8_get_nth_char(B.c_str(), static_cast<uint32_t>(i));
+    const char* ptrA   = A.c_str();
+    const char* ptrB   = B.c_str();
+    const char* endA   = ptrA + A.size();
+    const char* endB   = ptrB + B.size();
+    const char* startA = ptrA;
+
+    while (ptrA < endA && ptrB < endB) {
         unsigned int lenA = fcitx_utf8_char_len(ptrA);
         unsigned int lenB = fcitx_utf8_char_len(ptrB);
-        if (lenA == lenB && std::strncmp(ptrA, ptrB, lenA) == 0)
-            ++matchLength;
-        else
+        if (lenA == lenB && std::strncmp(ptrA, ptrB, lenA) == 0) {
+            ptrA += lenA;
+            ptrB += lenB;
+        } else {
             break;
+        }
     }
-    commonPrefix = SubstrChar(A, 0, matchLength);
-    deletedPart  = SubstrChar(A, matchLength, std::string::npos);
-    addedPart    = SubstrChar(B, matchLength, std::string::npos);
+
+    commonPrefix.assign(startA, ptrA);
+    deletedPart.assign(ptrA, endA);
+    addedPart.assign(ptrB, endB);
     return (deletedPart.empty() && addedPart.empty()) ? 1 : 2;
 }

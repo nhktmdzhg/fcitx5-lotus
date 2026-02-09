@@ -57,15 +57,12 @@ static inline void sleep_us(long us) {
 }
 
 // input injector functions
-void send_uinput_event(int type, int code, int value) {
-    if (uinput_fd_ < 0)
-        return;
-    struct input_event ev;
-    memset(&ev, 0, sizeof(ev));
-    ev.type  = type;
-    ev.code  = code;
+static inline struct input_event make_event(int type, int code, int value) {
+    struct input_event ev{};
+    ev.type  = static_cast<unsigned short>(type);
+    ev.code  = static_cast<unsigned short>(code);
     ev.value = value;
-    write(uinput_fd_, &ev, sizeof(ev));
+    return ev;
 }
 
 void send_backspace_uinput(int count) {
@@ -74,15 +71,17 @@ void send_backspace_uinput(int count) {
     if (count > 10)
         count = 10;
 
-    const int INTER_KEY_DELAY_US = 1200;
+    const int                INTER_KEY_DELAY_US = 1200;
+
+    const struct input_event cycle[4] = {
+        make_event(EV_KEY, KEY_BACKSPACE, 1),
+        make_event(EV_SYN, SYN_REPORT, 0),
+        make_event(EV_KEY, KEY_BACKSPACE, 0),
+        make_event(EV_SYN, SYN_REPORT, 0),
+    };
 
     for (int i = 0; i < count; ++i) {
-        send_uinput_event(EV_KEY, KEY_BACKSPACE, 1);
-        send_uinput_event(EV_SYN, SYN_REPORT, 0);
-
-        send_uinput_event(EV_KEY, KEY_BACKSPACE, 0);
-        send_uinput_event(EV_SYN, SYN_REPORT, 0);
-
+        write(uinput_fd_, cycle, sizeof(cycle));
         sleep_us(INTER_KEY_DELAY_US);
     }
 }
@@ -104,7 +103,7 @@ static const struct libinput_interface interface = {
 // MAIN FUNCTION
 int main(int argc, char* argv[]) {
     std::string target_user;
-    if (argc == 3 && std::string(argv[1]) == "-u") {
+    if (argc == 3 && strcmp(argv[1], "-u") == 0) {
         target_user = argv[2];
     } else {
         target_user = get_current_username();
@@ -112,8 +111,17 @@ int main(int argc, char* argv[]) {
     boost_process_priority();
     pin_to_pcore();
 
-    std::string backspace_socket  = "vmksocket-" + target_user + "-kb_socket";
-    std::string mouse_flag_socket = "vmksocket-" + target_user + "-mouse_socket";
+    std::string backspace_socket;
+    backspace_socket.reserve(40);
+    backspace_socket += "vmksocket-";
+    backspace_socket += target_user;
+    backspace_socket += "-kb_socket";
+
+    std::string mouse_flag_socket;
+    mouse_flag_socket.reserve(48);
+    mouse_flag_socket += "vmksocket-";
+    mouse_flag_socket += target_user;
+    mouse_flag_socket += "-mouse_socket";
 
     // Setup Uinput
     uinput_fd_ = open("/dev/uinput", O_WRONLY | O_NONBLOCK);
@@ -203,7 +211,7 @@ int main(int argc, char* argv[]) {
                     }
                 }
 
-                if (n > 0 && std::string(exe_path) == "/usr/bin/fcitx5") {
+                if (n > 0 && strcmp(exe_path, "/usr/bin/fcitx5") == 0) {
                     send_backspace_uinput(num_backspace);
                     char ack = '7';
                     send(client_fd, &ack, sizeof(ack), MSG_NOSIGNAL);

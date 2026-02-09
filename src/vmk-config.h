@@ -15,6 +15,8 @@
 #include <fcitx-utils/i18n.h>
 #include <fcitx-utils/stringutils.h>
 #include <string>
+#include <string_view>
+#include <unordered_map>
 #include <vector>
 
 namespace fcitx {
@@ -46,22 +48,12 @@ namespace fcitx {
 
     // Convert mode string to enum
     inline VMKMode modeStringToEnum(const std::string& mode) {
-        if (mode == "vmk1")
-            return VMKMode::VMK1;
-        else if (mode == "vmk2")
-            return VMKMode::VMK2;
-        else if (mode == "vmkpre")
-            return VMKMode::Preedit;
-        else if (mode == "vmk1hc")
-            return VMKMode::VMK1HC;
-        else if (mode == "Off")
-            return VMKMode::Off;
-        else if (mode == "emoji")
-            return VMKMode::Emoji;
-        else if (mode == "vmksmooth")
-            return VMKMode::VMKSmooth;
-        else
-            return VMKMode::NoMode;
+        static const std::unordered_map<std::string_view, VMKMode> modeMap = {
+            {"vmk1", VMKMode::VMK1}, {"vmk2", VMKMode::VMK2},   {"vmkpre", VMKMode::Preedit},      {"vmk1hc", VMKMode::VMK1HC},
+            {"Off", VMKMode::Off},   {"emoji", VMKMode::Emoji}, {"vmksmooth", VMKMode::VMKSmooth},
+        };
+        auto it = modeMap.find(mode);
+        return it != modeMap.end() ? it->second : VMKMode::NoMode;
     }
 
     struct InputMethodConstrain;
