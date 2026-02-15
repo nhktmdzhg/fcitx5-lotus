@@ -1,76 +1,95 @@
-<a name="readme-top"></a>
+<a id="readme-top"></a>
 
-[![Contributors][contributors-shield]][contributors-url]
-[![Forks][forks-shield]][forks-url]
-[![Stargazers][stars-shield]][stars-url]
-[![Issues][issues-shield]][issues-url]
-[![License][license-shield]][license-url]
-[![Facebook][facebook-shield]][facebook-url]
-
-<!-- PROJECT LOGO -->
-<br />
 <div align="center">
   <a href="https://github.com/nhktmdzhg/VMK">
     <img src="data/icons/scalable/apps/fcitx-vmk.svg" alt="Logo" width="80" height="80">
   </a>
 
-  <h3 align="center">Fcitx5 VMK (Nanoka)</h3>
+  <h2 align="center">Fcitx5 VMK</h2>
 
   <p align="center">
-    Bộ gõ tiếng Việt đơn giản, hiệu năng cao dành cho Fcitx5.
+    <b>Bộ gõ tiếng Việt đơn giản, hiệu năng cao cho Linux</b>
     <br />
-    <a href="#-cài-đặt"><strong>Cài đặt »</strong></a>
+    <br />
+    <a href="https://github.com/nhktmdzhg/VMK/releases">
+      <img src="https://img.shields.io/github/v/release/nhktmdzhg/VMK?style=flat&color=success" alt="Release">
+    </a>
+    <a href="https://github.com/nhktmdzhg/VMK/blob/main/LICENSE">
+      <img src="https://img.shields.io/github/license/nhktmdzhg/VMK?style=flat&color=blue" alt="License">
+    </a>
+    <a href="https://github.com/nhktmdzhg/VMK/stargazers">
+      <img src="https://img.shields.io/github/stars/nhktmdzhg/VMK?style=flat&color=yellow" alt="Stars">
+    </a>
+    <a href="https://github.com/nhktmdzhg/VMK/network/members">
+      <img src="https://img.shields.io/github/forks/nhktmdzhg/VMK?style=flat&color=orange" alt="Forks">
+    </a>
+    <a href="https://github.com/nhktmdzhg/VMK/issues">
+      <img src="https://img.shields.io/github/issues/nhktmdzhg/VMK?style=flat&color=red" alt="Issues">
+    </a>
+  </p>
+
+  <p align="center">
+    <a href="#cài-đặt"><strong>Cài đặt »</strong></a>
     <br />
     <br />
     <a href="https://github.com/nhktmdzhg/VMK/issues/new?template=bug_report.yml">Báo lỗi</a>
     &middot;
     <a href="https://github.com/nhktmdzhg/VMK/issues/new?template=feature_request.yml">Yêu cầu tính năng</a>
-    &middot;
-    <a href="https://software.opensuse.org//download.html?project=home%3Aiamnanoka&package=fcitx5-vmk">Open Build Service</a>
   </p>
 </div>
+
+<br />
 
 Dự án này là một bản fork được tối ưu hóa từ [bộ gõ VMK gốc](https://github.com/thanhpy2009/VMK). Chân thành cảm ơn tác giả Thành đã đặt nền móng cho bộ gõ này.
 
 > **Lưu ý:** Phiên bản này đã loại bỏ công cụ cấu hình cũ viết bằng FLTK. Mọi cấu hình giờ đây được thực hiện trực tiếp qua giao diện chuẩn của Fcitx5 hoặc qua menu phím tắt mới.
 
+<details>
+  <summary><b>Mục lục</b></summary>
+  <ol>
+    <li><a href="#cài-đặt">Cài đặt</a></li>
+    <li><a href="#bật-bộ-gõ">Bật bộ gõ</a></li>
+    <li><a href="#hướng-dẫn-sử-dụng">Hướng dẫn sử dụng</a></li>
+    <li><a href="#gỡ-cài-đặt">Gỡ cài đặt</a></li>
+    <li><a href="#cải-tiến-nổi-bật">Cải tiến nổi bật</a></li>
+    <li><a href="#đóng-góp">Đóng góp</a></li>
+    <li><a href="#giấy-phép">Giấy phép</a></li>
+  </ol>
+</details>
+
 ---
+
+<a id="cài-đặt"></a>
 
 ## 📦 Cài đặt
 
 <details>
-<summary><b>Arch Linux / Arch-based distro (systemd) (AUR)</b></summary>
+<summary><b>Arch / Arch-based - AUR</b></summary>
 <br>
 
-Hiện tại AUR đã có đầy đủ 3 gói cài đặt:
+Hiện tại AUR có 3 gói cài đặt để bạn lựa chọn:
 
-| Gói              | Mô tả                      |
-| ---------------- | -------------------------- |
-| `fcitx5-vmk`     | Build từ tag release       |
-| `fcitx5-vmk-bin` | Prebuilt binary            |
-| `fcitx5-vmk-git` | Build theo commit mới nhất |
+| Gói              | Mô tả                                          |
+| ---------------- | ---------------------------------------------- |
+| `fcitx5-vmk`     | Build từ mã nguồn release ổn định              |
+| `fcitx5-vmk-bin` | Dùng binary đã build sẵn (không cần biên dịch) |
+| `fcitx5-vmk-git` | Build từ danh sách commit mới nhất             |
+
+Cài đặt bằng `yay` hoặc `paru`:
 
 ```bash
-# Sử dụng yay
+# Cú pháp: yay -S <tên-gói>
 yay -S fcitx5-vmk
-yay -S fcitx5-vmk-bin
-yay -S fcitx5-vmk-git
 
-# Hoặc sử dụng paru
+# Hoặc nếu dùng paru
 paru -S fcitx5-vmk
-paru -S fcitx5-vmk-bin
-paru -S fcitx5-vmk-git
 ```
 
 </details>
 
 <details>
-<summary><b>Các Distro khác (Ubuntu/Fedora/Debian/openSUSE) - Open Build Service</b></summary>
+<summary><b>Debian / Ubuntu / Fedora / openSUSE - Open Build Service</b></summary>
 <br>
-
-Bạn có thể cài đặt fcitx5-vmk thông qua Open Build Service (OBS), nơi cung cấp các package đã được biên dịch sẵn cho nhiều distro khác nhau.
-
-#### Cài đặt qua Open Build Service (Khuyên dùng)
 
 Truy cập trang [Open Build Service](https://software.opensuse.org//download.html?project=home%3Aiamnanoka&package=fcitx5-vmk) để xem hướng dẫn cài đặt chi tiết cho distro của bạn.
 
@@ -79,7 +98,7 @@ Truy cập trang [Open Build Service](https://software.opensuse.org//download.ht
 
 Hoặc có thể xem cách cài của từng distro [tại đây](INSTALL.md).
 
-> Lưu ý: Arch và Arch-based distro cũng có thể dùng cách cài này.
+> **Lưu ý:** Arch và Arch-based distro cũng có thể dùng cách cài này.
 
 </details>
 
@@ -129,18 +148,14 @@ Rebuild lại system để cài đặt.
 </details>
 
 <details>
-<summary><b>Biên dịch từ nguồn (Build from source)</b></summary>
+<summary><b>Biên dịch từ nguồn</b></summary>
 <br>
 
 > **KHUYẾN CÁO QUAN TRỌNG:**
 >
-> Vui lòng **KHÔNG** sử dụng cách này nếu distro của bạn đã được hỗ trợ thông qua **OBS**.
+> Vui lòng **KHÔNG** sử dụng cách này nếu distro của bạn đã được hỗ trợ thông qua **Open Build Service**.
 >
 > Việc biên dịch thủ công đòi hỏi bạn phải hiểu rõ về cấu trúc thư mục của hệ thống. Nếu bạn gặp lỗi "Not Available" hoặc thiếu thư viện khi cài theo cách này trên các distro phổ biến (Ubuntu/Fedora...), hãy quay lại dùng OBS để đảm bảo tính ổn định và tự động cập nhật.
->
-> _Chỉ sử dụng cách này nếu distro của bạn thực sự không có trong danh sách hỗ trợ của OBS._
-
-Nếu bạn muốn biên dịch từ mã nguồn, hãy làm theo các bước sau:
 
 ##### Yêu cầu hệ thống
 
@@ -176,6 +191,8 @@ sudo make install PREFIX=/usr/local
 </details>
 
 ---
+
+<a id="bật-bộ-gõ"></a>
 
 ## ⚙️ Bật bộ gõ
 
@@ -214,10 +231,10 @@ EOF
 Log out và log in để áp dụng thay đổi.
 
 <details>
-<summary><b>Nếu bạn vẫn chưa gõ được sau khi Log out</b></summary>
+<summary><b>Nếu bạn vẫn chưa gõ được sau khi log out</b></summary>
 <br>
 
-Một số trường hợp file `~/.bash_profile` không được load, bạn có thể thử thêm vào `/etc/environment`. Cách này "mạnh tay" hơn và áp dụng cho toàn bộ hệ thống:
+Nếu cấu hình tại `~/.bash_profile` hoặc `~/.zprofile` không hoạt động, bạn có thể thử thiết lập tại `/etc/environment` để áp dụng cho toàn bộ hệ thống:
 
 ```bash
 cat <<EOF | sudo tee -a /etc/environment
@@ -229,7 +246,7 @@ GLFW_IM_MODULE=ibus
 EOF
 ```
 
-> **Lưu ý:** Sau khi sửa file này cần khởi động lại máy.
+> **Lưu ý:** Cần khởi động lại máy sau khi thiết lập.
 
 </details>
 
@@ -245,22 +262,30 @@ killall ibus-daemon || ibus exit
 Thêm `fcitx5` vào danh sách ứng dụng khởi động cùng hệ thống (Autostart).
 
 <details>
-<summary><b>Hướng dẫn Autostart cho từng môi trường (GNOME, KDE, i3...)</b></summary>
+<summary><b>Hướng dẫn Autostart cho từng Desktop Environment (GNOME, KDE, ...)</b></summary>
 <br>
 
-- **GNOME:** Mở _GNOME Tweaks_ → _Startup Applications_ → Add → `Fcitx 5`
-- **KDE Plasma:** _System Settings_ → _Startup and Shutdown_ → _Autostart_ → Add... → Add Application... → `Fcitx 5`
-- **Xfce:** _Settings_ → _Session and Startup_ → _Application Autostart_ → Add → `Fcitx 5`
-- **i3/Sway:** Thêm `exec --no-startup-id fcitx5 -d` vào file config (`~/.config/i3/config` hoặc `~/.config/sway/config`)
-- **Hyprland:** Thêm `exec-once = fcitx5 -d` vào `~/.config/hypr/hyprland.conf`
+| DE / WM        | Hướng dẫn chi tiết                                                                                                             |
+| :------------- | :----------------------------------------------------------------------------------------------------------------------------- |
+| **GNOME**      | Mở **GNOME Tweaks** → _Startup Applications_ → Add → `Fcitx 5`                                                                 |
+| **KDE Plasma** | **System Settings** → _Autostart_ → Add... → Add Application... → `Fcitx 5`                                                    |
+| **Xfce**       | **Settings** → _Session and Startup_ → _Application Autostart_ → Add → `Fcitx 5`                                               |
+| **Cinnamon**   | **System Settings** → _Startup Applications_ → `+` → Choose application → `Fcitx 5`                                            |
+| **MATE**       | **Control Center** → _Startup Applications_ → Add (Name: `Fcitx 5`, Command: `fcitx5`)                                         |
+| **Pantheon**   | **System Settings** → _Applications_ → _Startup_ → _Add Startup App..._ → `Fcitx 5`                                            |
+| **Budgie**     | **Budgie Desktop Settings** → _Autostart_ → `+` → Add application → `Fcitx 5`                                                  |
+| **LXQt**       | **LXQt Configuration Center** → _Session Settings_ → _Autostart_ → _LXQt Autostart_ → Add (Name: `Fcitx 5`, Command: `fcitx5`) |
+| **COSMIC**     | **COSMIC Settings** → _Applications_ → _Startup Applications_ → Add app → `Fcitx 5`                                            |
+| **i3 / Sway**  | Thêm `exec --no-startup-id fcitx5 -d` vào file config (`~/.config/i3/config` hoặc `~/.config/sway/config`)                     |
+| **Hyprland**   | Thêm `exec-once = fcitx5 -d` vào `~/.config/hypr/hyprland.conf`                                                                |
 
-> **Lưu ý:** Hãy xóa autostart của IBus nếu có (thường là `ibus-daemon` hoặc `ibus`), hoặc tốt hơn là gỡ luôn ibus ra khỏi máy.
+> **Lưu ý:** Hãy tắt autostart của IBus (thường là `ibus-daemon` hoặc `ibus`) để tránh xung đột. Tốt nhất là gỡ cài đặt IBus nếu không sử dụng.
 
 </details>
 
 ### 4. Cấu hình Fcitx5
 
-Sau khi đã Log out và Log in lại:
+Sau khi đã log out và log in lại:
 
 1. Mở **Fcitx5 Configuration** (tìm trong menu ứng dụng hoặc chạy `fcitx5-configtool`).
 2. Tìm **VMK** ở cột bên phải.
@@ -271,14 +296,15 @@ Sau khi đã Log out và Log in lại:
 
 Nếu bạn sử dụng **Wayland**, Fcitx5 cần được cấp quyền để hoạt động như bàn phím ảo:
 
-- **KDE Plasma (Wayland):** Vào _System Settings_ → _Keyboard_ → _Virtual Keyboard_ → Chọn **Fcitx 5**.
+- **KDE Plasma:** Vào _System Settings_ → _Keyboard_ → _Virtual Keyboard_ → Chọn **Fcitx 5**.
 - **Hyprland:** Thêm dòng sau vào `~/.config/hypr/hyprland.conf`:
   ```ini
   permission = fcitx5-vmk-server, keyboard, allow
   ```
-  _(Điều này cần thiết vì trên Wayland, Fcitx5 không thể hoạt động như X11)._
 
 ---
+
+<a id="hướng-dẫn-sử-dụng"></a>
 
 ## 📖 Hướng dẫn sử dụng
 
@@ -286,15 +312,17 @@ Nếu bạn sử dụng **Wayland**, Fcitx5 cần được cấp quyền để h
 
 Khi đang ở trong bất kỳ ứng dụng nào, nhấn phím **`** (dấu huyền) để mở menu chọn nhanh:
 
-- 🚀 **Mode 1 (Uinput smooth):** Chế độ mặc định, tốc độ phản hồi cao. Sử dụng server để gửi phím xóa. _Hạn chế:_ Không tương thích với ứng dụng xử lý chậm (ví dụ: LibreOffice).
-- 🐢 **Mode 2 (Uinput):** Tương tự Mode 1 nhưng tốc độ gửi phím chậm hơn. _Khuyên dùng:_ Cho các ứng dụng có tốc độ xử lý input thấp.
-- 🍷 **Mode 3 (Uinput hardcore):** Biến thể của Mode 1. _Khuyên dùng:_ Chạy ứng dụng Windows qua Wine.
-- ✨ **Mode 4 (Surrounding Text):** Sử dụng cơ chế Surrounding Text của ứng dụng (tối ưu cho Qt/GTK). Cho phép sửa dấu từ đã gõ và hoạt động mượt mà. _Lưu ý:_ Phụ thuộc vào sự hỗ trợ của ứng dụng (có thể không ổn định trên Firefox).
-- 📝 **Mode 5 (Preedit):** Hiển thị gạch chân khi gõ. Độ tương thích cao nhất nhưng trải nghiệm không tự nhiên bằng các mode trên.
-- 😃 **Emoji mode:** Chế độ tìm kiếm và nhập Emoji (nguồn EmojiOne, hỗ trợ Fuzzy Search). Xem danh sách [tại đây](data/emoji/EMOJI_GUIDE.md).
-- 📴 **OFF:** Tắt bộ gõ cho ứng dụng hiện tại.
-- 🔄 **Xóa thiết lập cho app:** Khôi phục cấu hình mặc định cho ứng dụng.
-- 🚪 **Tắt menu và gõ phím `:** Đóng menu và nhập ký tự dấu huyền.
+| Chế độ                           | Mô tả                                                                                                                                                                                                     |
+| :------------------------------- | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 🚀 **Mode 1 (Uinput smooth)**    | Chế độ mặc định, tốc độ phản hồi cao. Sử dụng server để gửi phím xóa. <br> _Hạn chế:_ Không tương thích với ứng dụng xử lý chậm (ví dụ: LibreOffice).                                                     |
+| 🐢 **Mode 2 (Uinput)**           | Tương tự Mode 1 nhưng tốc độ gửi phím chậm hơn. <br> _Khuyên dùng:_ Cho các ứng dụng có tốc độ xử lý input thấp.                                                                                          |
+| 🍷 **Mode 3 (Uinput hardcore)**  | Biến thể của Mode 1. <br> _Khuyên dùng:_ Chạy ứng dụng Windows qua Wine.                                                                                                                                  |
+| ✨ **Mode 4 (Surrounding Text)** | Sử dụng cơ chế Surrounding Text của ứng dụng (tối ưu cho Qt/GTK). Cho phép sửa dấu từ đã gõ và hoạt động mượt mà. <br> _Lưu ý:_ Phụ thuộc vào sự hỗ trợ của ứng dụng (có thể không ổn định trên Firefox). |
+| 📝 **Mode 5 (Preedit)**          | Hiển thị gạch chân khi gõ. Độ tương thích cao nhất nhưng trải nghiệm không tự nhiên bằng các mode trên.                                                                                                   |
+| 😃 **Emoji mode**                | Chế độ tìm kiếm và nhập Emoji (nguồn EmojiOne, hỗ trợ Fuzzy Search). Xem danh sách [tại đây](data/emoji/EMOJI_GUIDE.md).                                                                                  |
+| 📴 **OFF**                       | Tắt bộ gõ cho ứng dụng hiện tại.                                                                                                                                                                          |
+| 🔄 **Remove app settings**       | Khôi phục cấu hình mặc định cho ứng dụng.                                                                                                                                                                 |
+| 🚪 **Close menu and type `**     | Đóng menu và nhập ký tự dấu huyền.                                                                                                                                                                        |
 
 ### 2. Cơ chế đặt lại thông minh
 
@@ -302,31 +330,39 @@ Khi bạn click chuột hoặc chạm vào touchpad để đổi vị trí nhậ
 
 ---
 
+<a id="gỡ-cài-đặt"></a>
+
 ## 🗑️ Gỡ cài đặt
 
 <details>
-<summary><b>Arch Linux / Arch-based (AUR)</b></summary>
+<summary><b>Arch / Arch-based - AUR</b></summary>
 <br>
 
-Dùng `pacman` để gỡ, các file config ở `$HOME` sẽ được giữ lại (đúng chuẩn Linux):
+Bạn có thể dùng `pacman`, `yay` hoặc `paru` để gỡ cài đặt:
 
 ```bash
+# Sử dụng pacman (Khuyên dùng)
 sudo pacman -Rns fcitx5-vmk
-# Hoặc nếu cài bản bin/git
-sudo pacman -Rns fcitx5-vmk-bin
-sudo pacman -Rns fcitx5-vmk-git
+
+# Nếu dùng yay
+yay -Rns fcitx5-vmk
+
+# Nếu dùng paru
+paru -Rns fcitx5-vmk
 ```
+
+> **Lưu ý:** Các file config ở `$HOME` sẽ được giữ lại.
 
 </details>
 
 <details>
-<summary><b>Ubuntu / Fedora / openSUSE (OBS)</b></summary>
+<summary><b>Debian / Ubuntu / Fedora / openSUSE - Open Build Service</b></summary>
 <br>
 
 Gỡ package thông thường qua trình quản lý gói:
 
 ```bash
-# Ubuntu/Debian
+# Debian/Ubuntu
 sudo apt remove fcitx5-vmk
 
 # Fedora
@@ -347,7 +383,7 @@ Xóa (hoặc comment) dòng `services.fcitx5-vmk` và `inputs` trong file config
 </details>
 
 <details>
-<summary><b>Biên dịch từ nguồn (Source)</b></summary>
+<summary><b>Biên dịch từ nguồn</b></summary>
 <br>
 
 Vào lại thư mục source code đã build và chạy:
@@ -360,52 +396,40 @@ sudo make uninstall
 
 ---
 
+<a id="cải-tiến-nổi-bật"></a>
+
 ## 🚀 Cải tiến nổi bật
 
 <details>
 <summary><b>Click để xem chi tiết kỹ thuật</b></summary>
 <br>
 
-Bản fork này thay đổi hoàn toàn kiến trúc của Server và Addon để đạt hiệu năng tốt nhất trên Linux hiện đại.
+Bản fork này thay đổi hoàn toàn kiến trúc của Server và Addon để đạt hiệu năng tối ưu và bảo mật tốt hơn.
 
 ### 1. VMK Server (Backend)
 
-Server (phần mềm chạy ngầm để giả lập phím và theo dõi chuột) đã được viết lại (Refactor) theo phong cách **System Programming**:
+Server được viết lại theo phong cách **System Programming** hiện đại:
 
-- **Kiến trúc Event-Driven (Sử dụng `poll`):**
-  - **Cũ:** Dùng `usleep(5000)` để kiểm tra sự kiện liên tục (Polling 200Hz). Tốn CPU đánh thức hệ thống ngay cả khi không làm gì.
-  - **Mới:** Chuyển sang cơ chế `poll()` với timeout `-1` ở mọi nơi có thể. Server sẽ "ngủ đông" hoàn toàn khi không có sự kiện. **Mức tiêu thụ CPU khi nhàn rỗi là 0.0%**.
-
-- **Single-Threaded (Đơn luồng):** Loại bỏ hoàn toàn `std::thread`. Gộp chung việc lắng nghe Socket và theo dõi Chuột (Libinput) vào một vòng lặp sự kiện duy nhất. Giảm overhead và dung lượng binary.
-
-- **Phản hồi Thời gian thực (Real-time I/O):**
-  - **Cũ:** Ghi file log chuột vào ổ cứng (có delay 1s để tránh hỏng ổ).
-  - **Mới:** Sử dụng socket để gửi tín hiệu chuột đến addon, không ghi gì vào file, nhận tín hiệu ngay lập tức.
-
-- **Bảo mật socket:**
-  - **Cũ:** File socket có quyền 666, và cả file socket và file mouse flag đều đặt ở thư mục `/home`, bất cứ ai cũng có thể gửi socket nếu biết tên file, cũng như bất cứ ai cũng có thể ghi vào file mouse flag, với phần mềm foss có file tường minh, đây là LỖ HỔNG BẢO MẬT NGHIÊM TRỌNG.
-  - **Mới:**
-    - Sử dụng `getsockopt` để kiểm tra tên tiến trình gửi socket, và chỉ khi nào đúng tiến trình mới xử lý tiếp, không thể giả mạo tên tiến trình.
-    - Không sử dụng file socket như bình thường, mà sử dụng abstract socket, khởi tạo ngay trong kernel, không thể bị chiếm chỗ, không thể bị xóa.
+- **Kiến trúc Event-Driven (Sử dụng `poll`):** Thay thế cơ chế polling liên tục (gây tốn CPU) bằng `poll()` với timeout hợp lý. Server sẽ "ngủ đông" khi không có sự kiện, giúp mức tiêu thụ CPU khi nhàn rỗi gần như 0%.
+- **Single-Threaded:** Loại bỏ đa luồng phức tạp, gộp chung việc lắng nghe Socket và sự kiện đầu vào vào một vòng lặp sự kiện duy nhất, giảm overhead và dung lượng binary.
+- **Real-time I/O:** Sử dụng socket để giao tiếp trực tiếp giữa server và addon thay vì ghi file log, giúp phản hồi tức thì và bảo vệ ổ cứng.
+- **Bảo mật Socket:**
+  - Sử dụng **Abstract Socket** (không tạo file trên đĩa) kết hợp với xác thực `getsockopt` để đảm bảo chỉ tiến trình hợp lệ mới có thể gửi tín hiệu.
+  - Khắc phục các rủi ro bảo mật liên quan đến quyền truy cập file socket công khai ở phiên bản cũ.
 
 ### 2. VMK Addon (Frontend)
 
-Cải thiện trải nghiệm người dùng để tiện lợi hơn khi làm việc đa nhiệm:
+Cải thiện trải nghiệm người dùng với các tính năng tiện ích:
 
-- **Per-App Configuration (Cấu hình theo từng App):**
-  - Tự động ghi nhớ chế độ gõ (Mode) cho từng ứng dụng riêng biệt.
-  - _Ví dụ:_ Tự động tắt bộ gõ khi vào Terminal/Vim, tự bật vmk2 khi vào Chrome.
+- **Per-App Configuration:** Tự động ghi nhớ chế độ gõ (Mode) riêng biệt cho từng ứng dụng (Ví dụ: Tắt bộ gõ ở Terminal, bật ở Trình duyệt).
+- **Menu Phím Tắt Thông Minh (`):** Menu ngữ cảnh hiển thị ngay tại con trỏ văn bản, cho phép chuyển đổi chế độ nhanh chóng.
+- **Tính năng mở rộng:** Hỗ trợ sửa dấu từ cũ (Surrounding Text), chế độ nhập Emoji và nhiều cải tiến khác.
 
-- **Menu Phím Tắt Thông Minh ( ` ):**
-  - Nhấn ` (dấu huyền) để mở menu chọn nhanh chế độ ngay tại con trỏ văn bản chuẩn UI Fcitx5.
-  - Trạng thái hiện tại của App được đánh dấu rõ ràng trong danh sách chọn.
-
-- **Surrounding Text có thể sửa dấu từ cũ**
-
-- **Emoji mode**
 </details>
 
 ---
+
+<a id="đóng-góp"></a>
 
 ## 🤝 Đóng góp
 
@@ -423,6 +447,8 @@ Vui lòng xem hướng dẫn chi tiết tại [đây](CONTRIBUTING.md) để bi�
 
 ---
 
+<a id="giấy-phép"></a>
+
 ## 📃 Giấy phép
 
 Dự án được phân phối dưới giấy phép GNU General Public License v3. Xem [`LICENSE`](LICENSE) để biết thêm chi tiết.
@@ -436,18 +462,3 @@ Dự án được phân phối dưới giấy phép GNU General Public License v
 </a>
 
 ---
-
-<!-- MARKDOWN LINKS & IMAGES -->
-
-[contributors-shield]: https://img.shields.io/github/contributors/nhktmdzhg/VMK.svg?style=for-the-badge
-[contributors-url]: https://github.com/nhktmdzhg/VMK/graphs/contributors
-[forks-shield]: https://img.shields.io/github/forks/nhktmdzhg/VMK.svg?style=for-the-badge
-[forks-url]: https://github.com/nhktmdzhg/VMK/network/members
-[stars-shield]: https://img.shields.io/github/stars/nhktmdzhg/VMK.svg?style=for-the-badge
-[stars-url]: https://github.com/nhktmdzhg/VMK/stargazers
-[issues-shield]: https://img.shields.io/github/issues/nhktmdzhg/VMK.svg?style=for-the-badge
-[issues-url]: https://github.com/nhktmdzhg/VMK/issues
-[license-shield]: https://img.shields.io/github/license/nhktmdzhg/VMK.svg?style=for-the-badge
-[license-url]: https://github.com/nhktmdzhg/VMK/blob/main/LICENSE
-[facebook-shield]: https://img.shields.io/badge/Facebook-Group-0866FF?style=for-the-badge&logo=facebook&logoColor=white
-[facebook-url]: https://www.facebook.com/groups/vietnamlinuxcommunity
