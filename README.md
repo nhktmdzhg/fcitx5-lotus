@@ -2,7 +2,7 @@
 
 <div align="center">
   <a href="https://github.com/nhktmdzhg/VMK">
-    <img src="data/icons/scalable/apps/fcitx-vmk.svg" alt="Logo" width="80" height="80">
+    <img src="data/icons/scalable/apps/fcitx-vmk-logo.svg" alt="Logo" width="80" height="80">
   </a>
 
   <h2 align="center">Fcitx5 VMK</h2>
@@ -51,7 +51,6 @@ Dự án này là một bản fork được tối ưu hóa từ [bộ gõ VMK g�
     <li><a href="#bật-bộ-gõ">Bật bộ gõ</a></li>
     <li><a href="#hướng-dẫn-sử-dụng">Hướng dẫn sử dụng</a></li>
     <li><a href="#gỡ-cài-đặt">Gỡ cài đặt</a></li>
-    <li><a href="#cải-tiến-nổi-bật">Cải tiến nổi bật</a></li>
     <li><a href="#đóng-góp">Đóng góp</a></li>
     <li><a href="#giấy-phép">Giấy phép</a></li>
   </ol>
@@ -75,13 +74,17 @@ Hiện tại AUR có 3 gói cài đặt để bạn lựa chọn:
 | `fcitx5-vmk-bin` | Dùng binary đã build sẵn (không cần biên dịch) |
 | `fcitx5-vmk-git` | Build từ danh sách commit mới nhất             |
 
-Cài đặt bằng `yay` hoặc `paru`:
+Cài đặt bằng `yay`:
 
 ```bash
 # Cú pháp: yay -S <tên-gói>
 yay -S fcitx5-vmk
+```
 
-# Hoặc nếu dùng paru
+Hoặc `paru`:
+
+```bash
+# Cú pháp: paru -S <tên-gói>
 paru -S fcitx5-vmk
 ```
 
@@ -108,7 +111,7 @@ Hoặc có thể xem cách cài của từng distro [tại đây](INSTALL.md).
 
 Thêm input của fcitx5-vmk vào `flake.nix`:
 
-```
+```nix
 {
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
@@ -127,7 +130,7 @@ Thêm input của fcitx5-vmk vào `flake.nix`:
 
 Bật fcitx5-vmk service trong `configuration.nix`:
 
-```
+```nix
 {
   inputs,
   ...
@@ -159,14 +162,21 @@ Rebuild lại system để cài đặt.
 
 ##### Yêu cầu hệ thống
 
+- Ubuntu/Debian
+
 ```bash
-# Ubuntu/Debian
 sudo apt-get install cmake extra-cmake-modules libfcitx5core-dev libfcitx5config-dev libfcitx5utils-dev libinput-dev libudev-dev g++ golang hicolor-icon-theme pkg-config libx11-dev
+```
 
-# Fedora/RHEL
+- Fedora/RHEL
+
+```bash
 sudo dnf install cmake extra-cmake-modules fcitx5-devel libinput-devel libudev-devel gcc-c++ golang hicolor-icon-theme systemd-devel libX11-devel
+```
 
-# openSUSE
+- openSUSE
+
+```bash
 sudo zypper install cmake extra-cmake-modules fcitx5-devel libinput-devel systemd-devel gcc-c++ go hicolor-icon-theme systemd-devel libX11-devel udev
 ```
 
@@ -262,12 +272,11 @@ killall ibus-daemon || ibus exit
 Thêm `fcitx5` vào danh sách ứng dụng khởi động cùng hệ thống (Autostart).
 
 <details>
-<summary><b>Hướng dẫn Autostart cho từng Desktop Environment (GNOME, KDE, ...)</b></summary>
-<br>
+<summary><b>Hướng dẫn thêm Autostart cho từng DE / WM (GNOME, Hyprland ...)</b></summary>
 
 | DE / WM        | Hướng dẫn chi tiết                                                                                                             |
 | :------------- | :----------------------------------------------------------------------------------------------------------------------------- |
-| **GNOME**      | Mở **GNOME Tweaks** → _Startup Applications_ → Add → `Fcitx 5`                                                                 |
+| **GNOME**      | **GNOME Tweaks** → _Startup Applications_ → Add → `Fcitx 5`                                                                    |
 | **KDE Plasma** | **System Settings** → _Autostart_ → Add... → Add Application... → `Fcitx 5`                                                    |
 | **Xfce**       | **Settings** → _Session and Startup_ → _Application Autostart_ → Add → `Fcitx 5`                                               |
 | **Cinnamon**   | **System Settings** → _Startup Applications_ → `+` → Choose application → `Fcitx 5`                                            |
@@ -291,16 +300,17 @@ Sau khi đã log out và log in lại:
 2. Tìm **VMK** ở cột bên phải.
 3. Nhấn mũi tên **<** để thêm nó sang cột bên trái.
 4. Apply.
+<details>
+<summary><b>Cấu hình thêm cho Wayland (KDE, Hyprland)</b></summary>
 
-### 5. Cấu hình cho Wayland (KDE và Hyprland)
-
-Nếu bạn sử dụng **Wayland**, Fcitx5 cần được cấp quyền để hoạt động như bàn phím ảo:
+Nếu bạn sử dụng Wayland, Fcitx5 cần được cấu hình thêm để hoạt động như bàn phím ảo:
 
 - **KDE Plasma:** Vào _System Settings_ → _Keyboard_ → _Virtual Keyboard_ → Chọn **Fcitx 5**.
 - **Hyprland:** Thêm dòng sau vào `~/.config/hypr/hyprland.conf`:
   ```ini
   permission = fcitx5-vmk-server, keyboard, allow
   ```
+  </details>
 
 ---
 
@@ -310,23 +320,25 @@ Nếu bạn sử dụng **Wayland**, Fcitx5 cần được cấp quyền để h
 
 ### 1. Menu chuyển mode nhanh
 
-Khi đang ở trong bất kỳ ứng dụng nào, nhấn phím **`** (dấu huyền) để mở menu chọn nhanh:
+Khi đang ở trong bất kỳ ứng dụng nào, nhấn phím **`** (dấu huyền) để mở menu chọn chế độ gõ:
 
-| Chế độ                           | Mô tả                                                                                                                                                                                                     |
-| :------------------------------- | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 🚀 **Mode 1 (Uinput smooth)**    | Chế độ mặc định, tốc độ phản hồi cao. Sử dụng server để gửi phím xóa. <br> _Hạn chế:_ Không tương thích với ứng dụng xử lý chậm (ví dụ: LibreOffice).                                                     |
-| 🐢 **Mode 2 (Uinput)**           | Tương tự Mode 1 nhưng tốc độ gửi phím chậm hơn. <br> _Khuyên dùng:_ Cho các ứng dụng có tốc độ xử lý input thấp.                                                                                          |
-| 🍷 **Mode 3 (Uinput hardcore)**  | Biến thể của Mode 1. <br> _Khuyên dùng:_ Chạy ứng dụng Windows qua Wine.                                                                                                                                  |
-| ✨ **Mode 4 (Surrounding Text)** | Sử dụng cơ chế Surrounding Text của ứng dụng (tối ưu cho Qt/GTK). Cho phép sửa dấu từ đã gõ và hoạt động mượt mà. <br> _Lưu ý:_ Phụ thuộc vào sự hỗ trợ của ứng dụng (có thể không ổn định trên Firefox). |
-| 📝 **Mode 5 (Preedit)**          | Hiển thị gạch chân khi gõ. Độ tương thích cao nhất nhưng trải nghiệm không tự nhiên bằng các mode trên.                                                                                                   |
-| 😃 **Emoji mode**                | Chế độ tìm kiếm và nhập Emoji (nguồn EmojiOne, hỗ trợ Fuzzy Search). Xem danh sách [tại đây](data/emoji/EMOJI_GUIDE.md).                                                                                  |
-| 📴 **OFF**                       | Tắt bộ gõ cho ứng dụng hiện tại.                                                                                                                                                                          |
-| 🔄 **Remove app settings**       | Khôi phục cấu hình mặc định cho ứng dụng.                                                                                                                                                                 |
-| 🚪 **Close menu and type `**     | Đóng menu và nhập ký tự dấu huyền.                                                                                                                                                                        |
+| Chế độ                            | Mô tả                                                                                                                                                                                                  |
+| --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 🚀 **Mode 1 — Uinput (Smooth)**   | Chế độ mặc định, phản hồi nhanh. Sử dụng server để gửi phím xoá.<br>_Hạn chế:_ Có thể không tương thích với ứng dụng xử lý chậm (ví dụ: LibreOffice).                                                  |
+| 🐢 **Mode 2 — Uinput (Slow)**     | Tương tự Mode 1 nhưng tốc độ gửi phím chậm hơn.<br>_Khuyên dùng:_ Cho ứng dụng có tốc độ xử lý input thấp.                                                                                             |
+| 🍷 **Mode 3 — Uinput (Hardcore)** | Biến thể của Mode 1.<br>_Khuyên dùng:_ Khi chạy ứng dụng Windows qua Wine.                                                                                                                             |
+| ✨ **Mode 4 — Surrounding Text**  | Dùng cơ chế Surrounding Text của ứng dụng (tối ưu cho Qt/GTK). Cho phép sửa dấu trên văn bản đã gõ, hoạt động mượt.<br>_Lưu ý:_ Phụ thuộc mức hỗ trợ của ứng dụng (có thể không ổn định trên Firefox). |
+| 📝 **Mode 5 — Preedit**           | Hiển thị gạch chân khi gõ. Độ tương thích cao nhất nhưng trải nghiệm kém tự nhiên hơn các mode trên.                                                                                                   |
+| 😃 **Emoji Picker**               | Tìm kiếm và nhập Emoji (nguồn EmojiOne, hỗ trợ fuzzy search). Xem danh sách [tại đây](data/emoji/EMOJI_GUIDE.md).                                                                                      |
+| 📴 **OFF**                        | Tắt bộ gõ.                                                                                                                                                                                             |
+| 🔄 **Remove App Settings**        | Khôi phục cấu hình mặc định cho ứng dụng hiện tại.                                                                                                                                                     |
+| 🚪 **Type `**                     | Nhập ký tự dấu huyền.                                                                                                                                                                                  |
 
-### 2. Cơ chế đặt lại thông minh
+Bộ gõ sẽ lưu chế độ đã dùng gần nhất cho từng ứng dụng và tự động khôi phục cấu hình đó khi bạn mở lại cùng ứng dụng.
 
-Khi bạn click chuột hoặc chạm vào touchpad để đổi vị trí nhập liệu, bộ gõ sẽ tự động đặt lại trạng thái ngay lập tức. Điều này giúp tránh lỗi dính chữ cũ vào từ mới (một lỗi rất phổ biến trên các bộ gõ Linux khác).
+### 2. Cơ chế Smart Reset
+
+Tự động reset trạng thái bộ gõ khi người dùng click chuột hoặc chạm touchpad để di chuyển con trỏ. Điều này ngăn chặn hiện tượng dính ký tự giữa các từ.
 
 ---
 
@@ -338,16 +350,17 @@ Khi bạn click chuột hoặc chạm vào touchpad để đổi vị trí nhậ
 <summary><b>Arch / Arch-based - AUR</b></summary>
 <br>
 
-Bạn có thể dùng `pacman`, `yay` hoặc `paru` để gỡ cài đặt:
+Bạn có thể dùng `pacman` (khuyên dùng), `yay` hoặc `paru` để gỡ cài đặt:
 
 ```bash
-# Sử dụng pacman (Khuyên dùng)
 sudo pacman -Rns fcitx5-vmk
+```
 
-# Nếu dùng yay
+```bash
 yay -Rns fcitx5-vmk
+```
 
-# Nếu dùng paru
+```bash
 paru -Rns fcitx5-vmk
 ```
 
@@ -361,14 +374,21 @@ paru -Rns fcitx5-vmk
 
 Gỡ package thông thường qua trình quản lý gói:
 
+- Debian/Ubuntu
+
 ```bash
-# Debian/Ubuntu
 sudo apt remove fcitx5-vmk
+```
 
-# Fedora
+- Fedora
+
+```bash
 sudo dnf remove fcitx5-vmk
+```
 
-# openSUSE
+- openSUSE
+
+```bash
 sudo zypper remove fcitx5-vmk
 ```
 
@@ -396,46 +416,13 @@ sudo make uninstall
 
 ---
 
-<a id="cải-tiến-nổi-bật"></a>
-
-## 🚀 Cải tiến nổi bật
-
-<details>
-<summary><b>Click để xem chi tiết kỹ thuật</b></summary>
-<br>
-
-Bản fork này thay đổi hoàn toàn kiến trúc của Server và Addon để đạt hiệu năng tối ưu và bảo mật tốt hơn.
-
-### 1. VMK Server (Backend)
-
-Server được viết lại theo phong cách **System Programming** hiện đại:
-
-- **Kiến trúc Event-Driven (Sử dụng `poll`):** Thay thế cơ chế polling liên tục (gây tốn CPU) bằng `poll()` với timeout hợp lý. Server sẽ "ngủ đông" khi không có sự kiện, giúp mức tiêu thụ CPU khi nhàn rỗi gần như 0%.
-- **Single-Threaded:** Loại bỏ đa luồng phức tạp, gộp chung việc lắng nghe Socket và sự kiện đầu vào vào một vòng lặp sự kiện duy nhất, giảm overhead và dung lượng binary.
-- **Real-time I/O:** Sử dụng socket để giao tiếp trực tiếp giữa server và addon thay vì ghi file log, giúp phản hồi tức thì và bảo vệ ổ cứng.
-- **Bảo mật Socket:**
-  - Sử dụng **Abstract Socket** (không tạo file trên đĩa) kết hợp với xác thực `getsockopt` để đảm bảo chỉ tiến trình hợp lệ mới có thể gửi tín hiệu.
-  - Khắc phục các rủi ro bảo mật liên quan đến quyền truy cập file socket công khai ở phiên bản cũ.
-
-### 2. VMK Addon (Frontend)
-
-Cải thiện trải nghiệm người dùng với các tính năng tiện ích:
-
-- **Per-App Configuration:** Tự động ghi nhớ chế độ gõ (Mode) riêng biệt cho từng ứng dụng (Ví dụ: Tắt bộ gõ ở Terminal, bật ở Trình duyệt).
-- **Menu Phím Tắt Thông Minh (`):** Menu ngữ cảnh hiển thị ngay tại con trỏ văn bản, cho phép chuyển đổi chế độ nhanh chóng.
-- **Tính năng mở rộng:** Hỗ trợ sửa dấu từ cũ (Surrounding Text), chế độ nhập Emoji và nhiều cải tiến khác.
-
-</details>
-
----
-
 <a id="đóng-góp"></a>
 
 ## 🤝 Đóng góp
 
 Đóng góp là điều làm cho cộng đồng mã nguồn mở trở thành một nơi tuyệt vời để học hỏi, truyền cảm hứng và sáng tạo. Mọi đóng góp của bạn đều được **đánh giá cao**.
 
-Vui lòng xem hướng dẫn chi tiết tại [đây](CONTRIBUTING.md) để biết cách tham gia phát triển dự án, quy trình Pull Request và quy tắc code style.
+Vui lòng xem hướng dẫn chi tiết [tại đây](CONTRIBUTING.md) để biết cách tham gia phát triển dự án, quy trình Pull Request và quy tắc code style.
 
 Đừng quên tặng dự án một ⭐! Cảm ơn bạn rất nhiều!
 

@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: fcitx5-vmk 0.12.1\n"
 "Report-Msgid-Bugs-To: nhktmdzhg@gmail.com\n"
-"POT-Creation-Date: 2026-02-15 12:12+0700\n"
+"POT-Creation-Date: 2026-02-17 20:07+0700\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -29,7 +29,7 @@ msgstr ""
 msgid "Macro"
 msgstr ""
 
-#: src/vmk-config.h:124 src/vmk-config.h:138
+#: src/vmk-config.h:124 src/vmk-config.h:139
 msgid "Custom Keymap"
 msgstr ""
 
@@ -45,126 +45,142 @@ msgstr ""
 msgid "Output Charset"
 msgstr ""
 
-#: src/vmk-config.h:133 src/vmk.cpp:1345
+#: src/vmk-config.h:133 src/vmk.cpp:1399
 msgid "Enable spell check"
 msgstr ""
 
-#: src/vmk-config.h:133 src/vmk.cpp:1357
+#: src/vmk-config.h:133 src/vmk.cpp:1411
 msgid "Enable Macro"
 msgstr ""
 
-#: src/vmk-config.h:134 src/vmk.cpp:1369
+#: src/vmk-config.h:134 src/vmk.cpp:1423
 msgid "Capitalize Macro"
 msgstr ""
 
-#: src/vmk-config.h:135 src/vmk.cpp:1381
+#: src/vmk-config.h:135 src/vmk.cpp:1435
 msgid "Auto restore keys with invalid words"
 msgstr ""
 
-#: src/vmk-config.h:136 src/vmk.cpp:1393
+#: src/vmk-config.h:136 src/vmk.cpp:1447
 msgid "Use oà, _uý (instead of òa, úy)"
 msgstr ""
 
-#: src/vmk-config.h:137 src/vmk.cpp:1405
+#: src/vmk-config.h:137 src/vmk.cpp:1459
 msgid "Allow type with more freedom"
 msgstr ""
 
-#: src/vmk.cpp:1260
-msgid "Typing Mode"
+#: src/vmk-config.h:138 src/vmk.cpp:1471
+msgid "Fix uinput mode with ack"
+msgstr ""
+
+#: src/vmk.cpp:420
+msgid "Page "
 msgstr ""
 
 #: src/vmk.cpp:1317
+msgid "Typing Mode"
+msgstr ""
+
+#: src/vmk.cpp:1371
 msgid "Charset"
 msgstr ""
 
-#: src/vmk.cpp:1734
+#: src/vmk.cpp:1878
 msgid "Typing Mode: "
 msgstr ""
 
-#: src/vmk.cpp:1765
+#: src/vmk.cpp:1909
 msgid "Spell Check: On"
 msgstr ""
 
-#: src/vmk.cpp:1765
+#: src/vmk.cpp:1909
 msgid "Spell Check: Off"
 msgstr ""
 
-#: src/vmk.cpp:1773
+#: src/vmk.cpp:1917
 msgid "Macro: On"
 msgstr ""
 
-#: src/vmk.cpp:1773
+#: src/vmk.cpp:1917
 msgid "Macro: Off"
 msgstr ""
 
-#: src/vmk.cpp:1781
+#: src/vmk.cpp:1925
 msgid "Capitalize Macro: On"
 msgstr ""
 
-#: src/vmk.cpp:1781
+#: src/vmk.cpp:1925
 msgid "Capitalize Macro: Off"
 msgstr ""
 
-#: src/vmk.cpp:1789
+#: src/vmk.cpp:1933
 msgid "Auto Non-VN Restore: On"
 msgstr ""
 
-#: src/vmk.cpp:1789
+#: src/vmk.cpp:1933
 msgid "Auto Non-VN Restore: Off"
 msgstr ""
 
-#: src/vmk.cpp:1797
+#: src/vmk.cpp:1941
 msgid "Modern Style: On"
 msgstr ""
 
-#: src/vmk.cpp:1797
+#: src/vmk.cpp:1941
 msgid "Modern Style: Off"
 msgstr ""
 
-#: src/vmk.cpp:1805
+#: src/vmk.cpp:1949
 msgid "Free Marking: On"
 msgstr ""
 
-#: src/vmk.cpp:1805
+#: src/vmk.cpp:1949
 msgid "Free Marking: Off"
 msgstr ""
 
-#: src/vmk.cpp:1865
-msgid " (Default)"
+#: src/vmk.cpp:1957
+msgid "Fix Vmk1 With Ack: On"
 msgstr ""
 
-#: src/vmk.cpp:1871
-msgid "App name detected by fcitx5: "
+#: src/vmk.cpp:1957
+msgid "Fix Vmk1 With Ack: Off"
 msgstr ""
 
-#: src/vmk.cpp:1872
-msgid "1. Fake backspace by Uinput (smooth)"
+#: src/vmk.cpp:2063
+msgid "App: "
 msgstr ""
 
-#: src/vmk.cpp:1873
-msgid "2. Fake backspace by Uinput"
+#: src/vmk.cpp:2064
+msgid "[1] Uinput (smooth)"
 msgstr ""
 
-#: src/vmk.cpp:1874
-msgid "3. Fake backspace by Uinput for wine apps"
+#: src/vmk.cpp:2065
+msgid "[2] Uinput (Slow)"
 msgstr ""
 
-#: src/vmk.cpp:1875
-msgid "4. Surrounding Text"
+#: src/vmk.cpp:2066
+msgid "[3] Uinput (Hardcore)"
 msgstr ""
 
-#: src/vmk.cpp:1876
-msgid "5. Preedit"
+#: src/vmk.cpp:2067
+msgid "[4] Surrounding Text"
 msgstr ""
 
-#: src/vmk.cpp:1877
-msgid "6. Emoji mode"
+#: src/vmk.cpp:2068
+msgid "[q] Preedit"
 msgstr ""
 
-#: src/vmk.cpp:1879
-msgid "8. Remove app settings"
+#: src/vmk.cpp:2069
+msgid "[w] Emoji Picker"
 msgstr ""
 
-#: src/vmk.cpp:1880
-msgid "`. Close menu and type `"
+#: src/vmk.cpp:2070
+msgid "[e] OFF"
+msgstr ""
+
+#: src/vmk.cpp:2072
+msgid "[r] Remove App Settings"
+msgstr ""
+
+#: src/vmk.cpp:2080
+msgid "[`] Type `"
 msgstr ""

@@ -123,10 +123,15 @@ int main(int argc, char* argv[]) {
     if (uinput_fd_ >= 0) {
         ioctl(uinput_fd_, UI_SET_EVBIT, EV_KEY);
         ioctl(uinput_fd_, UI_SET_KEYBIT, KEY_BACKSPACE);
-        struct uinput_user_dev uidev{};
-        snprintf(uidev.name, UINPUT_MAX_NAME_SIZE, "Fcitx5_Uinput_Server");
-        (void)write(uinput_fd_, &uidev, sizeof(uidev));
+        struct uinput_setup usetup;
+        memset(&usetup, 0, sizeof(usetup));
+        usetup.id.bustype = BUS_USB;
+        usetup.id.vendor  = 0x1234;
+        usetup.id.product = 0x5678;
+        strncpy(usetup.name, "VMK-Uinput-Server", UINPUT_MAX_NAME_SIZE - 1);
+        ioctl(uinput_fd_, UI_DEV_SETUP, &usetup);
         ioctl(uinput_fd_, UI_DEV_CREATE);
+        sleep(1);
     }
 
     int                server_fd       = socket(AF_UNIX, SOCK_STREAM | SOCK_NONBLOCK, 0); // Non-blocking socket
@@ -200,6 +205,10 @@ int main(int argc, char* argv[]) {
             if (pending_backspaces > 0) {
                 send_single_backspace();
                 --pending_backspaces;
+                if (pending_backspaces == 0) {
+                    char ack = '7';
+                    send(fds[3].fd, &ack, sizeof(ack), MSG_NOSIGNAL | MSG_DONTWAIT);
+                }
             }
         }
 

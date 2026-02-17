@@ -16,7 +16,7 @@ Type=simple
 ExecStart=/usr/bin/fcitx5-vmk-server -u %i
 
 Restart=on-failure
-RestartSec=5
+RestartSec=0
 
 [Install]
 WantedBy=multi-user.target

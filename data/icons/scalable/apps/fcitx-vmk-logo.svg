@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="48" height="48" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+
+  <rect x="2" y="2" width="44" height="44" rx="10" ry="10" fill="#E91E8C"/>
+
+  <!--
+    1 cánh duy nhất: bầu, tròn đỉnh, hẹp gốc
+    Gốc tại (24,33) — xoay quanh điểm này để xòe ra hai bên
+    Vẽ từ ngoài vào trong → cánh giữa nằm trên cùng
+  -->
+
+  <!-- Cánh ngoài trái -->
+  <path d="M 24,33 C 19,28 17,18 24,11 C 31,18 29,28 24,33"
+        fill="#FFFFFF" stroke="#E91E8C" stroke-width="1"
+        transform="rotate(-52, 24, 33)"/>
+
+  <!-- Cánh ngoài phải -->
+  <path d="M 24,33 C 19,28 17,18 24,11 C 31,18 29,28 24,33"
+        fill="#FFFFFF" stroke="#E91E8C" stroke-width="1"
+        transform="rotate(52, 24, 33)"/>
+
+  <!-- Cánh trong trái -->
+  <path d="M 24,33 C 19,28 17,18 24,11 C 31,18 29,28 24,33"
+        fill="#FFFFFF" stroke="#E91E8C" stroke-width="1"
+        transform="rotate(-26, 24, 33)"/>
+
+  <!-- Cánh trong phải -->
+  <path d="M 24,33 C 19,28 17,18 24,11 C 31,18 29,28 24,33"
+        fill="#FFFFFF" stroke="#E91E8C" stroke-width="1"
+        transform="rotate(26, 24, 33)"/>
+
+  <!-- Cánh giữa — trên cùng, không stroke -->
+  <path d="M 24,33 C 19,28 17,18 24,11 C 31,18 29,28 24,33"
+        fill="#FFFFFF"/>
+
+  <!-- Đài sen -->
+  <path d="M 14,36 Q 24,33 34,36"
+        fill="none" stroke="#FFFFFF" stroke-width="2"
+        stroke-linecap="round"/>
+
+</svg>

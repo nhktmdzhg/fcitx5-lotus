@@ -111,6 +111,8 @@ namespace fcitx {
 
         std::string          subMode(const fcitx::InputMethodEntry& entry, fcitx::InputContext& inputContext) override;
 
+        std::string          overrideIcon(const fcitx::InputMethodEntry& entry) override;
+
         const auto&          config() const {
             return config_;
         }
@@ -146,6 +148,7 @@ namespace fcitx {
         void updateAutoNonVnRestoreAction(InputContext* ic);
         void updateModernStyleAction(InputContext* ic);
         void updateFreeMarkingAction(InputContext* ic);
+        void updateFixVmk1WithAckAction(InputContext* ic);
         void updateInputMethodAction(InputContext* ic);
         void updateCharsetAction(InputContext* ic);
         void populateConfig();
@@ -157,6 +160,7 @@ namespace fcitx {
         EmojiLoader& emojiLoader() {
             return emojiLoader_;
         }
+        void setMode(VMKMode mode, InputContext* ic);
 
       private:
         Instance*                                         instance_;
@@ -185,6 +189,7 @@ namespace fcitx {
         std::unique_ptr<SimpleAction>                     autoNonVnRestoreAction_;
         std::unique_ptr<SimpleAction>                     modernStyleAction_;
         std::unique_ptr<SimpleAction>                     freeMarkingAction_;
+        std::unique_ptr<SimpleAction>                     fixVmk1WithAckAction_;
         std::vector<ScopedConnection>                     connections_;
         CGoObject                                         dictionary_;
         // ibus-bamboo mode save/load

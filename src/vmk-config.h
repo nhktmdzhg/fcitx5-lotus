@@ -135,6 +135,7 @@ namespace fcitx {
         Option<bool>    autoNonVnRestore{this, "AutoNonVnRestore", _("Auto restore keys with invalid words"), true};
         Option<bool>    modernStyle{this, "ModernStyle", _("Use oà, _uý (instead of òa, úy)"), true};
         Option<bool>    freeMarking{this, "FreeMarking", _("Allow type with more freedom"), true};
+        Option<bool>    fixVmk1WithAck{this, "FixVmk1WithAck", _("Fix uinput mode with ack"), false};
         SubConfigOption customKeymap{this, "CustomKeymap", _("Custom Keymap"), "fcitx://config/addon/vmk/custom_keymap"};);
 
 } // namespace fcitx
