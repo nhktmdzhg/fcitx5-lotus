@@ -1,10 +1,10 @@
 #ifndef EMOJI_H
 #define EMOJI_H
 
+#include <algorithm>
 #include <cstddef>
 #include <string>
 #include <vector>
-#include <algorithm>
 
 struct EmojiEntry {
     std::string trigger;

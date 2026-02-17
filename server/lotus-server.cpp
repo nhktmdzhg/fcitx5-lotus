@@ -30,7 +30,7 @@
 #include <unistd.h>
 #include <vector>
 // --- VARIABLES ---
-static int uinput_fd_ = -1;
+static int               uinput_fd_ = -1;
 static std::atomic<bool> g_running{true};
 
 // signal handler
@@ -43,12 +43,14 @@ static void signal_handler(int sig) {
 
 // get username
 std::string get_current_username() {
-    struct passwd *pw = getpwuid(getuid());
+    struct passwd* pw = getpwuid(getuid());
     return pw ? pw->pw_name : "unknown";
 }
 
 // system functions
-static void boost_process_priority() { setpriority(PRIO_PROCESS, 0, -10); }
+static void boost_process_priority() {
+    setpriority(PRIO_PROCESS, 0, -10);
+}
 
 static void pin_to_pcore() {
     cpu_set_t cpuset;
@@ -65,12 +67,12 @@ static void send_single_backspace() {
     memset(ev, 0, sizeof(ev));
 
     // Press
-    ev[0].type = EV_KEY;
-    ev[0].code = KEY_BACKSPACE;
+    ev[0].type  = EV_KEY;
+    ev[0].code  = KEY_BACKSPACE;
     ev[0].value = 1;
 
-    ev[1].type = EV_SYN;
-    ev[1].code = SYN_REPORT;
+    ev[1].type  = EV_SYN;
+    ev[1].code  = SYN_REPORT;
     ev[1].value = 0;
     write(uinput_fd_, ev, sizeof(ev));
 
@@ -80,19 +82,21 @@ static void send_single_backspace() {
 }
 
 // LIBINPUT HELPERS
-static int open_restricted(const char *path, int flags, void * /*user_data*/) {
+static int open_restricted(const char* path, int flags, void* /*user_data*/) {
     int fd = open(path, flags);
     return fd < 0 ? -errno : fd;
 }
-static void close_restricted(int fd, void * /*user_data*/) { close(fd); }
+static void close_restricted(int fd, void* /*user_data*/) {
+    close(fd);
+}
 
 static const struct libinput_interface interface = {
-    .open_restricted = open_restricted,
+    .open_restricted  = open_restricted,
     .close_restricted = close_restricted,
 };
 
 // MAIN FUNCTION
-int main(int argc, char *argv[]) {
+int main(int argc, char* argv[]) {
     std::string target_user;
     if (argc == 3 && strcmp(argv[1], "-u") == 0) {
         target_user = argv[2];
@@ -122,7 +126,7 @@ int main(int argc, char *argv[]) {
         struct uinput_setup usetup;
         memset(&usetup, 0, sizeof(usetup));
         usetup.id.bustype = BUS_USB;
-        usetup.id.vendor = 0x1234;
+        usetup.id.vendor  = 0x1234;
         usetup.id.product = 0x5678;
         strncpy(usetup.name, "Lotus-Uinput-Server", UINPUT_MAX_NAME_SIZE - 1);
         ioctl(uinput_fd_, UI_DEV_SETUP, &usetup);
@@ -130,36 +134,30 @@ int main(int argc, char *argv[]) {
         sleep(1);
     }
 
-    int server_fd =
-        socket(AF_UNIX, SOCK_STREAM | SOCK_NONBLOCK, 0); // Non-blocking socket
-    int mouse_server_fd =
-        socket(AF_UNIX, SOCK_STREAM | SOCK_NONBLOCK, 0); // Non-blocking socket
+    int                server_fd       = socket(AF_UNIX, SOCK_STREAM | SOCK_NONBLOCK, 0); // Non-blocking socket
+    int                mouse_server_fd = socket(AF_UNIX, SOCK_STREAM | SOCK_NONBLOCK, 0); // Non-blocking socket
 
     struct sockaddr_un addr_kb{};
     struct sockaddr_un addr_mouse{};
 
-    addr_kb.sun_family = AF_UNIX;
+    addr_kb.sun_family    = AF_UNIX;
     addr_mouse.sun_family = AF_UNIX;
 
-    addr_kb.sun_path[0] = '\0';
+    addr_kb.sun_path[0]    = '\0';
     addr_mouse.sun_path[0] = '\0';
 
-    memcpy(addr_kb.sun_path + 1, backspace_socket.c_str(),
-           backspace_socket.length());
-    memcpy(addr_mouse.sun_path + 1, mouse_flag_socket.c_str(),
-           mouse_flag_socket.length());
+    memcpy(addr_kb.sun_path + 1, backspace_socket.c_str(), backspace_socket.length());
+    memcpy(addr_mouse.sun_path + 1, mouse_flag_socket.c_str(), mouse_flag_socket.length());
 
-    socklen_t kb_len =
-        offsetof(struct sockaddr_un, sun_path) + backspace_socket.length() + 1;
-    socklen_t mouse_len =
-        offsetof(struct sockaddr_un, sun_path) + mouse_flag_socket.length() + 1;
+    socklen_t kb_len    = offsetof(struct sockaddr_un, sun_path) + backspace_socket.length() + 1;
+    socklen_t mouse_len = offsetof(struct sockaddr_un, sun_path) + mouse_flag_socket.length() + 1;
 
-    if (bind(server_fd, (struct sockaddr *)&addr_kb, kb_len) != 0) {
+    if (bind(server_fd, (struct sockaddr*)&addr_kb, kb_len) != 0) {
         std::cerr << "Failed to bind socket" << std::endl;
         return 1;
     }
 
-    if (bind(mouse_server_fd, (struct sockaddr *)&addr_mouse, mouse_len) != 0) {
+    if (bind(mouse_server_fd, (struct sockaddr*)&addr_mouse, mouse_len) != 0) {
         std::cerr << "Failed to bind socket" << std::endl;
         return 1;
     }
@@ -167,10 +165,10 @@ int main(int argc, char *argv[]) {
     listen(server_fd, 5);
     listen(mouse_server_fd, 5);
 
-    struct udev *udev = udev_new();
-    struct libinput *li = libinput_udev_create_context(&interface, NULL, udev);
+    struct udev*     udev = udev_new();
+    struct libinput* li   = libinput_udev_create_context(&interface, NULL, udev);
     libinput_udev_assign_seat(li, "seat0");
-    int li_fd = libinput_get_fd(li);
+    int                        li_fd = libinput_get_fd(li);
 
     std::vector<struct pollfd> fds;
     fds.push_back({server_fd, POLLIN, 0});
@@ -178,8 +176,8 @@ int main(int argc, char *argv[]) {
     fds.push_back({mouse_server_fd, POLLIN, 0});
     fds.push_back({-1, POLLIN, 0});
 
-    int addon_fd = -1;
-    int pending_backspaces = 0;
+    int              addon_fd           = -1;
+    int              pending_backspaces = 0;
 
     struct sigaction sa{};
     sa.sa_handler = signal_handler;
@@ -190,7 +188,7 @@ int main(int argc, char *argv[]) {
 
     while (true) {
         int poll_timeout = (pending_backspaces > 0) ? 1 : -1;
-        int ret = poll(fds.data(), fds.size(), poll_timeout);
+        int ret          = poll(fds.data(), fds.size(), poll_timeout);
 
         if (ret < 0) {
             // if error, continue
@@ -209,8 +207,7 @@ int main(int argc, char *argv[]) {
                 --pending_backspaces;
                 if (pending_backspaces == 0) {
                     char ack = '7';
-                    send(fds[3].fd, &ack, sizeof(ack),
-                         MSG_NOSIGNAL | MSG_DONTWAIT);
+                    send(fds[3].fd, &ack, sizeof(ack), MSG_NOSIGNAL | MSG_DONTWAIT);
                 }
             }
         }
@@ -222,16 +219,14 @@ int main(int argc, char *argv[]) {
             int client_fd = accept4(server_fd, nullptr, nullptr, SOCK_NONBLOCK);
             if (client_fd >= 0) {
                 struct ucred cred;
-                socklen_t len = sizeof(struct ucred);
-                char exe_path[PATH_MAX] = {0};
+                socklen_t    len                = sizeof(struct ucred);
+                char         exe_path[PATH_MAX] = {0};
 
-                if (getsockopt(client_fd, SOL_SOCKET, SO_PEERCRED, &cred,
-                               &len) == 0) {
+                if (getsockopt(client_fd, SOL_SOCKET, SO_PEERCRED, &cred, &len) == 0) {
                     char path[64];
                     snprintf(path, sizeof(path), "/proc/%d/exe", cred.pid);
 
-                    ssize_t ret =
-                        readlink(path, exe_path, sizeof(exe_path) - 1);
+                    ssize_t ret = readlink(path, exe_path, sizeof(exe_path) - 1);
                     if (ret != -1) {
                         exe_path[ret] = '\0';
                     }
@@ -268,8 +263,7 @@ int main(int argc, char *argv[]) {
 
         // connect to mouse socket
         if (fds[2].revents & POLLIN) {
-            int new_fd =
-                accept4(mouse_server_fd, nullptr, nullptr, SOCK_NONBLOCK);
+            int new_fd = accept4(mouse_server_fd, nullptr, nullptr, SOCK_NONBLOCK);
             if (new_fd >= 0) {
                 if (addon_fd >= 0)
                     close(addon_fd);
@@ -279,17 +273,15 @@ int main(int argc, char *argv[]) {
 
         // handle mouse (libinput)
         if (fds[1].revents & POLLIN) {
-            struct libinput_event *event;
+            struct libinput_event* event;
 
             while ((event = libinput_get_event(li))) {
                 enum libinput_event_type type = libinput_event_get_type(event);
 
                 if (type == LIBINPUT_EVENT_POINTER_BUTTON) {
-                    struct libinput_event_pointer *p =
-                        libinput_event_get_pointer_event(event);
+                    struct libinput_event_pointer* p = libinput_event_get_pointer_event(event);
                     // only when pressed
-                    if (libinput_event_pointer_get_button_state(p) ==
-                        LIBINPUT_BUTTON_STATE_PRESSED) {
+                    if (libinput_event_pointer_get_button_state(p) == LIBINPUT_BUTTON_STATE_PRESSED) {
                         // send flag through socket
                         if (addon_fd >= 0) {
                             send(addon_fd, "C", 1, MSG_NOSIGNAL | MSG_DONTWAIT);
@@ -297,13 +289,10 @@ int main(int argc, char *argv[]) {
                     }
                 } else if (type == LIBINPUT_EVENT_DEVICE_ADDED) {
                     // add new device
-                    struct libinput_device *dev =
-                        libinput_event_get_device(event);
+                    struct libinput_device* dev = libinput_event_get_device(event);
                     if (libinput_device_config_tap_get_finger_count(dev) > 0) {
-                        libinput_device_config_tap_set_enabled(
-                            dev, LIBINPUT_CONFIG_TAP_ENABLED);
-                        libinput_device_config_tap_set_button_map(
-                            dev, LIBINPUT_CONFIG_TAP_MAP_LRM);
+                        libinput_device_config_tap_set_enabled(dev, LIBINPUT_CONFIG_TAP_ENABLED);
+                        libinput_device_config_tap_set_button_map(dev, LIBINPUT_CONFIG_TAP_MAP_LRM);
                     }
                 }
                 libinput_event_destroy(event);

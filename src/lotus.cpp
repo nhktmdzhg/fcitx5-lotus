@@ -63,35 +63,33 @@
 #include <mutex>
 #endif
 
-fcitx::LotusMode realMode = fcitx::LotusMode::Smooth;
+fcitx::LotusMode  realMode = fcitx::LotusMode::Smooth;
 std::atomic<bool> needEngineReset{false};
-std::string BASE_SOCKET_PATH;
+std::string       BASE_SOCKET_PATH;
 // Global flag to signal mouse click for closing app mode menu
 static std::atomic<bool> g_mouse_clicked{false};
-std::atomic<bool> is_deleting_{false};
-static const int MAX_BACKSPACE_COUNT = 8;
-std::string SubstrChar(const std::string &s, size_t start, size_t len);
-int compareAndSplitStrings(const std::string &A, const std::string &B,
-                           std::string &commonPrefix, std::string &deletedPart,
-                           std::string &addedPart);
-std::once_flag monitor_init_flag;
-std::atomic<bool> stop_flag_monitor{false};
-std::atomic<bool> monitor_running{false};
-int uinput_client_fd_ = -1;
-int realtextLen = 0;
-bool waitAck = false;
-std::atomic<int> mouse_socket_fd{-1};
+std::atomic<bool>        is_deleting_{false};
+static const int         MAX_BACKSPACE_COUNT = 8;
+std::string              SubstrChar(const std::string& s, size_t start, size_t len);
+int                      compareAndSplitStrings(const std::string& A, const std::string& B, std::string& commonPrefix, std::string& deletedPart, std::string& addedPart);
+std::once_flag           monitor_init_flag;
+std::atomic<bool>        stop_flag_monitor{false};
+std::atomic<bool>        monitor_running{false};
+int                      uinput_client_fd_ = -1;
+int                      realtextLen       = 0;
+bool                     waitAck           = false;
+std::atomic<int>         mouse_socket_fd{-1};
 
-std::atomic<int64_t> replacement_start_ms_{0};
-std::atomic<int> replacement_thread_id_{0};
-std::atomic<bool> needFallbackCommit{false};
+std::atomic<int64_t>     replacement_start_ms_{0};
+std::atomic<int>         replacement_thread_id_{0};
+std::atomic<bool>        needFallbackCommit{false};
 
-std::mutex monitor_mutex;
-std::condition_variable monitor_cv;
+std::mutex               monitor_mutex;
+std::condition_variable  monitor_cv;
 
 //
-std::string buildSocketPath(const char *base_path_suffix) {
-    const char *username_c = std::getenv("USER");
+std::string buildSocketPath(const char* base_path_suffix) {
+    const char* username_c = std::getenv("USER");
     std::string path;
     path.reserve(32);
     path += "lotussocket-";
@@ -102,9 +100,7 @@ std::string buildSocketPath(const char *base_path_suffix) {
 }
 
 static inline int64_t now_ms() {
-    return std::chrono::duration_cast<std::chrono::milliseconds>(
-               std::chrono::steady_clock::now().time_since_epoch())
-        .count();
+    return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
 }
 
 void deletingTimeMonitor() {
@@ -113,10 +109,7 @@ void deletingTimeMonitor() {
 
         {
             std::unique_lock<std::mutex> lock(monitor_mutex);
-            monitor_cv.wait(lock, [] {
-                return is_deleting_.load(std::memory_order_acquire) ||
-                       stop_flag_monitor.load(std::memory_order_acquire);
-            });
+            monitor_cv.wait(lock, [] { return is_deleting_.load(std::memory_order_acquire) || stop_flag_monitor.load(std::memory_order_acquire); });
         }
 
         if (stop_flag_monitor.load())
@@ -124,15 +117,12 @@ void deletingTimeMonitor() {
 
         deleting_since = now_ms();
 
-        while (is_deleting_.load(std::memory_order_acquire) &&
-               !stop_flag_monitor.load()) {
+        while (is_deleting_.load(std::memory_order_acquire) && !stop_flag_monitor.load()) {
             int64_t current_time = now_ms();
 
-            int64_t rep_start =
-                replacement_start_ms_.load(std::memory_order_acquire);
+            int64_t rep_start = replacement_start_ms_.load(std::memory_order_acquire);
             if (rep_start > 0 && (current_time - rep_start) > 200) {
-                int expected_id =
-                    replacement_thread_id_.load(std::memory_order_acquire);
+                int expected_id = replacement_thread_id_.load(std::memory_order_acquire);
                 if (expected_id > 0) {
                     is_deleting_.store(false, std::memory_order_release);
                     needFallbackCommit.store(true, std::memory_order_release);
@@ -175,822 +165,778 @@ bool isBackspace(uint32_t sym) {
 }
 
 namespace fcitx {
-namespace {
-constexpr std::string_view MacroPrefix = "macro/";
-constexpr std::string_view InputMethodActionPrefix = "lotus-input-method-";
-constexpr std::string_view CharsetActionPrefix = "lotus-charset-";
-const std::string CustomKeymapFile = "conf/lotus-custom-keymap.conf";
-constexpr int MAX_SCAN_LENGTH = 15;
+    namespace {
+        constexpr std::string_view MacroPrefix             = "macro/";
+        constexpr std::string_view InputMethodActionPrefix = "lotus-input-method-";
+        constexpr std::string_view CharsetActionPrefix     = "lotus-charset-";
+        const std::string          CustomKeymapFile        = "conf/lotus-custom-keymap.conf";
+        constexpr int              MAX_SCAN_LENGTH         = 15;
 
-std::string macroFile(std::string_view imName) {
-    return stringutils::concat("conf/lotus-macro-", imName, ".conf");
-}
+        std::string                macroFile(std::string_view imName) {
+            return stringutils::concat("conf/lotus-macro-", imName, ".conf");
+        }
 
-uintptr_t newMacroTable(const lotusMacroTable &macroTable) {
-    const auto &macros = *macroTable.macros;
-    std::vector<char *> charArray;
-    charArray.reserve(macros.size() * 2 + 1);
-    for (const auto &keymap : macros) {
-        charArray.push_back(const_cast<char *>(keymap.key->data()));
-        charArray.push_back(const_cast<char *>(keymap.value->data()));
-    }
-    charArray.push_back(nullptr);
-    return NewMacroTable(charArray.data());
-}
-
-std::vector<std::string> convertToStringList(char **array) {
-    std::vector<std::string> result;
-    int count = 0;
-    for (int i = 0; array[i]; ++i)
-        ++count;
-    result.reserve(count);
-    for (int i = 0; i < count; ++i) {
-        result.emplace_back(array[i]);
-        free(array[i]);
-    }
-    free(array);
-    return result;
-}
-
-bool isWordBreak(uint32_t ucs4) {
-    return ucs4 == ' ' || ucs4 == '\t' || ucs4 == '\n' || ucs4 == '\r' ||
-           ucs4 == 0 || // Null char
-           (ucs4 < 65 && ucs4 > 57);
-}
-
-} // namespace
-
-FCITX_DEFINE_LOG_CATEGORY(lotus, "lotus");
-
-class LotusState final : public InputContextProperty {
-  public:
-    LotusState(LotusEngine *engine, InputContext *ic)
-        : engine_(engine), ic_(ic) {
-        setEngine();
-    }
-
-    ~LotusState() {}
-
-    void setEngine() {
-        lotusEngine_.reset();
-        realMode = modeStringToEnum(engine_->config().mode.value());
-
-        if (engine_->config().inputMethod.value() == "Custom") {
-            const auto &keymaps = *engine_->customKeymap().customKeymap;
-            std::vector<char *> charArray;
-            charArray.reserve(keymaps.size() * 2 + 1);
-            for (const auto &keymap : keymaps) {
-                charArray.push_back(const_cast<char *>(keymap.key->data()));
-                charArray.push_back(const_cast<char *>(keymap.value->data()));
+        uintptr_t newMacroTable(const lotusMacroTable& macroTable) {
+            const auto&        macros = *macroTable.macros;
+            std::vector<char*> charArray;
+            charArray.reserve(macros.size() * 2 + 1);
+            for (const auto& keymap : macros) {
+                charArray.push_back(const_cast<char*>(keymap.key->data()));
+                charArray.push_back(const_cast<char*>(keymap.value->data()));
             }
             charArray.push_back(nullptr);
-            lotusEngine_.reset(NewCustomEngine(charArray.data(),
-                                               engine_->dictionary(),
-                                               engine_->macroTable()));
-        } else {
-            lotusEngine_.reset(NewEngine(engine_->config().inputMethod->data(),
-                                         engine_->dictionary(),
-                                         engine_->macroTable()));
-        }
-        setOption();
-    }
-
-    void setOption() {
-        if (!lotusEngine_)
-            return;
-        FcitxBambooEngineOption option = {
-            .autoNonVnRestore = *engine_->config().autoNonVnRestore,
-            .ddFreeStyle = true,
-            .macroEnabled = *engine_->config().macro,
-            .autoCapitalizeMacro = *engine_->config().capitalizeMacro,
-            .spellCheckWithDicts = *engine_->config().spellCheck,
-            .outputCharset = engine_->config().outputCharset->data(),
-            .modernStyle = *engine_->config().modernStyle,
-            .freeMarking = *engine_->config().freeMarking,
-        };
-        EngineSetOption(lotusEngine_.handle(), &option);
-    }
-
-    bool connect_uinput_server() {
-        if (uinput_client_fd_ >= 0)
-            return true;
-        BASE_SOCKET_PATH = buildSocketPath("kb_socket");
-        const std::string current_path = BASE_SOCKET_PATH;
-        int current_fd = socket(AF_UNIX, SOCK_STREAM, 0);
-        if (current_fd < 0)
-            return false;
-
-        struct sockaddr_un addr;
-        memset(&addr, 0, sizeof(addr));
-        addr.sun_family = AF_UNIX;
-
-        addr.sun_path[0] = '\0';
-        memcpy(addr.sun_path + 1, current_path.c_str(), current_path.length());
-        socklen_t len =
-            offsetof(struct sockaddr_un, sun_path) + current_path.length() + 1;
-
-        if (connect(current_fd, (struct sockaddr *)&addr, len) == 0) {
-            uinput_client_fd_ = current_fd;
-            return true;
-        }
-        close(current_fd);
-        uinput_client_fd_ = -1;
-        return false;
-    }
-
-    int setup_uinput() {
-        return connect_uinput_server() ? uinput_client_fd_ : -1;
-    }
-
-    void send_backspace_uinput(int count) {
-        if (uinput_client_fd_ < 0 && !connect_uinput_server())
-            return;
-        if (count > MAX_BACKSPACE_COUNT)
-            count = MAX_BACKSPACE_COUNT;
-
-        if (uinput_client_fd_ < 0) {
-            if (!connect_uinput_server())
-                return;
+            return NewMacroTable(charArray.data());
         }
 
-        ssize_t n =
-            send(uinput_client_fd_, &count, sizeof(count), MSG_NOSIGNAL);
-
-        if (n < 0) {
-            close(uinput_client_fd_);
-            uinput_client_fd_ = -1;
-            if (connect_uinput_server()) {
-                send(uinput_client_fd_, &count, sizeof(count), MSG_NOSIGNAL);
+        std::vector<std::string> convertToStringList(char** array) {
+            std::vector<std::string> result;
+            int                      count = 0;
+            for (int i = 0; array[i]; ++i)
+                ++count;
+            result.reserve(count);
+            for (int i = 0; i < count; ++i) {
+                result.emplace_back(array[i]);
+                free(array[i]);
             }
+            free(array);
+            return result;
         }
 
-        if (waitAck) {
-            char ack;
-            recv(uinput_client_fd_, &ack, sizeof(ack), MSG_NOSIGNAL);
+        bool isWordBreak(uint32_t ucs4) {
+            return ucs4 == ' ' || ucs4 == '\t' || ucs4 == '\n' || ucs4 == '\r' || ucs4 == 0 || // Null char
+                (ucs4 < 65 && ucs4 > 57);
         }
-    }
 
-    void replayBufferToEngine(const std::string &buffer) {
-        if (!lotusEngine_.handle())
-            return;
+    } // namespace
 
-        ResetEngine(lotusEngine_.handle());
-        for (uint32_t c : fcitx::utf8::MakeUTF8CharRange(buffer)) {
-            if (c == static_cast<uint32_t>('\b')) {
-                EngineProcessKeyEvent(lotusEngine_.handle(), FcitxKey_BackSpace,
-                                      0);
+    FCITX_DEFINE_LOG_CATEGORY(lotus, "lotus");
+
+    class LotusState final : public InputContextProperty {
+      public:
+        LotusState(LotusEngine* engine, InputContext* ic) : engine_(engine), ic_(ic) {
+            setEngine();
+        }
+
+        ~LotusState() {}
+
+        void setEngine() {
+            lotusEngine_.reset();
+            realMode = modeStringToEnum(engine_->config().mode.value());
+
+            if (engine_->config().inputMethod.value() == "Custom") {
+                const auto&        keymaps = *engine_->customKeymap().customKeymap;
+                std::vector<char*> charArray;
+                charArray.reserve(keymaps.size() * 2 + 1);
+                for (const auto& keymap : keymaps) {
+                    charArray.push_back(const_cast<char*>(keymap.key->data()));
+                    charArray.push_back(const_cast<char*>(keymap.value->data()));
+                }
+                charArray.push_back(nullptr);
+                lotusEngine_.reset(NewCustomEngine(charArray.data(), engine_->dictionary(), engine_->macroTable()));
             } else {
-                EngineProcessKeyEvent(lotusEngine_.handle(), c, 0);
+                lotusEngine_.reset(NewEngine(engine_->config().inputMethod->data(), engine_->dictionary(), engine_->macroTable()));
             }
-        }
-    }
-
-    bool isAutofillCertain(const SurroundingText &s) {
-        if (!s.isValid() || oldPreBuffer_.empty()) {
-            return false;
+            setOption();
         }
 
-        int cursor = s.cursor();
-        int anchor = s.anchor();
+        void setOption() {
+            if (!lotusEngine_)
+                return;
+            FcitxBambooEngineOption option = {
+                .autoNonVnRestore    = *engine_->config().autoNonVnRestore,
+                .ddFreeStyle         = true,
+                .macroEnabled        = *engine_->config().macro,
+                .autoCapitalizeMacro = *engine_->config().capitalizeMacro,
+                .spellCheckWithDicts = *engine_->config().spellCheck,
+                .outputCharset       = engine_->config().outputCharset->data(),
+                .modernStyle         = *engine_->config().modernStyle,
+                .freeMarking         = *engine_->config().freeMarking,
+            };
+            EngineSetOption(lotusEngine_.handle(), &option);
+        }
 
-        // This alway is false
-        if (cursor != anchor) {
-            int selectionStart = std::min(anchor, cursor);
-            int selectionEnd = std::max(anchor, cursor);
+        bool connect_uinput_server() {
+            if (uinput_client_fd_ >= 0)
+                return true;
+            BASE_SOCKET_PATH               = buildSocketPath("kb_socket");
+            const std::string current_path = BASE_SOCKET_PATH;
+            int               current_fd   = socket(AF_UNIX, SOCK_STREAM, 0);
+            if (current_fd < 0)
+                return false;
 
-            if (selectionStart >= cursor ||
-                (selectionStart < cursor && selectionEnd > cursor)) {
+            struct sockaddr_un addr;
+            memset(&addr, 0, sizeof(addr));
+            addr.sun_family = AF_UNIX;
+
+            addr.sun_path[0] = '\0';
+            memcpy(addr.sun_path + 1, current_path.c_str(), current_path.length());
+            socklen_t len = offsetof(struct sockaddr_un, sun_path) + current_path.length() + 1;
+
+            if (connect(current_fd, (struct sockaddr*)&addr, len) == 0) {
+                uinput_client_fd_ = current_fd;
                 return true;
             }
-        }
-
-        const auto &text = s.text();
-        size_t textLen = fcitx_utf8_strlen(text.c_str());
-
-        // Guard?
-        // if (textLen <= static_cast<size_t>(realtextLen))
-        //     realtextLen = textLen;
-
-        if (textLen == static_cast<size_t>(cursor)) {
-            realtextLen = textLen;
+            close(current_fd);
+            uinput_client_fd_ = -1;
             return false;
         }
 
-        // Text exists after cursor AND cursor is exactly where we expected
-        // (realtextLen tracks where cursor should be after our last commit).
-        // This is the only reliable signal that the app appended a suggestion.
-        // why -1?? cuz some SurroundingText is only update on event
-        // so when u type "12345" surronding text is "1234" it will
-        // update to "12345" when next u type "6" so this will make
-        // work correctly when cursor in the middle of the string
-        // Failed with:
-        //              a.com[/] + 's' -> a.coóm // Bad
-        //              a.co[m/] + 's' -> a.có   // Good
-        if (textLen - 1 > static_cast<size_t>(cursor) && cursor == realtextLen)
-            return true;
-
-        if (realtextLen < cursor)
-            realtextLen = cursor;
-
-        return false;
-    }
-
-    // Helper function for preedit mode
-    void handlePreeditMode(KeyEvent &keyEvent) {
-        if (EngineProcessKeyEvent(lotusEngine_.handle(),
-                                  keyEvent.rawKey().sym(),
-                                  keyEvent.rawKey().states()))
-            keyEvent.filterAndAccept();
-        if (char *commit = EnginePullCommit(lotusEngine_.handle())) {
-            if (commit[0])
-                ic_->commitString(commit);
-            free(commit);
-        }
-        ic_->inputPanel().reset();
-        UniqueCPtr<char> preedit(EnginePullPreedit(lotusEngine_.handle()));
-        if (preedit && preedit.get()[0]) {
-            std::string_view view = preedit.get();
-            Text text;
-            TextFormatFlags fmt = TextFormatFlag::NoFlag;
-            if (utf8::validate(view))
-                text.append(std::string(view), fmt);
-            text.setCursor(text.textLength());
-            if (ic_->capabilityFlags().test(CapabilityFlag::Preedit))
-                ic_->inputPanel().setClientPreedit(text);
-            else
-                ic_->inputPanel().setPreedit(text);
-        }
-        ic_->updatePreedit();
-        ic_->updateUserInterface(UserInterfaceComponent::InputPanel);
-    }
-
-    // Helper function for emoji mode
-    void updateEmojiPageStatus(CommonCandidateList *commonList) {
-        if (!commonList || commonList->empty()) {
-            return;
+        int setup_uinput() {
+            return connect_uinput_server() ? uinput_client_fd_ : -1;
         }
 
-        int pageSize = commonList->pageSize();
-        if (pageSize <= 0) {
-            pageSize = 9;
-        }
-
-        int totalItems = commonList->totalSize();
-        int currentPage = commonList->currentPage() + 1;
-        int totalPages = (totalItems + pageSize - 1) / pageSize;
-
-        std::string status = _("Page ") + std::to_string(currentPage) + "/" +
-                             std::to_string(totalPages);
-        ic_->inputPanel().setAuxDown(Text(status));
-    }
-
-    void handleEmojiMode(KeyEvent &keyEvent) {
-        if (keyEvent.key().hasModifier()) {
-            keyEvent.forward();
-            return;
-        }
-
-        const KeySym currentSym = keyEvent.rawKey().sym();
-
-        auto baseList = ic_->inputPanel().candidateList();
-        auto commonList =
-            std::dynamic_pointer_cast<CommonCandidateList>(baseList);
-        if (commonList && currentSym >= FcitxKey_1 &&
-            currentSym <= FcitxKey_9) {
-            int offset = currentSym - FcitxKey_1;
-            int globalIndex =
-                commonList->currentPage() * commonList->pageSize() + offset;
-
-            if (globalIndex < (int)commonList->totalSize()) {
-                commonList->candidateFromAll(globalIndex).select(ic_);
-                keyEvent.filterAndAccept();
+        void send_backspace_uinput(int count) {
+            if (uinput_client_fd_ < 0 && !connect_uinput_server())
                 return;
+            if (count > MAX_BACKSPACE_COUNT)
+                count = MAX_BACKSPACE_COUNT;
+
+            if (uinput_client_fd_ < 0) {
+                if (!connect_uinput_server())
+                    return;
+            }
+
+            ssize_t n = send(uinput_client_fd_, &count, sizeof(count), MSG_NOSIGNAL);
+
+            if (n < 0) {
+                close(uinput_client_fd_);
+                uinput_client_fd_ = -1;
+                if (connect_uinput_server()) {
+                    send(uinput_client_fd_, &count, sizeof(count), MSG_NOSIGNAL);
+                }
+            }
+
+            if (waitAck) {
+                char ack;
+                recv(uinput_client_fd_, &ack, sizeof(ack), MSG_NOSIGNAL);
             }
         }
 
-        if (commonList && !commonList->empty()) {
-            int globalCursorIndex = commonList->globalCursorIndex();
-            int totalSize = commonList->totalSize();
-            int currentPage = commonList->currentPage();
-            int pageSize = commonList->pageSize();
-            int localCursorIndex = globalCursorIndex - currentPage * pageSize;
-
-            bool handled = false;
-
-            switch (currentSym) {
-            case FcitxKey_Tab:
-            case FcitxKey_Down: {
-                if (globalCursorIndex == totalSize - 1) {
-                    commonList->setGlobalCursorIndex(globalCursorIndex);
-                } else if (localCursorIndex < pageSize - 1) {
-                    commonList->setGlobalCursorIndex(globalCursorIndex + 1);
-                } else {
-                    commonList->next();
-                    int newPage = commonList->currentPage();
-                    commonList->setGlobalCursorIndex(newPage * pageSize);
-                }
-                handled = true;
-                break;
-            }
-
-            case FcitxKey_ISO_Left_Tab:
-            case FcitxKey_Up: {
-                if (globalCursorIndex == 0) {
-                    commonList->setGlobalCursorIndex(globalCursorIndex);
-                } else if (localCursorIndex > 0) {
-                    commonList->setGlobalCursorIndex(globalCursorIndex - 1);
-                } else {
-                    commonList->prev();
-                    int newPage = commonList->currentPage();
-                    int newIndex = newPage * pageSize + pageSize - 1;
-                    commonList->setGlobalCursorIndex(newIndex);
-                }
-                handled = true;
-                break;
-            }
-            case FcitxKey_Page_Down:
-            case FcitxKey_Right: {
-                if (commonList->hasNext()) {
-                    commonList->next();
-                    int newPage = commonList->currentPage();
-                    commonList->setGlobalCursorIndex(newPage * pageSize);
-                    handled = true;
-                }
-                break;
-            }
-            case FcitxKey_Page_Up:
-            case FcitxKey_Left: {
-                if (commonList->hasPrev()) {
-                    commonList->prev();
-                    int newPage = commonList->currentPage();
-                    commonList->setGlobalCursorIndex(newPage * pageSize);
-                    handled = true;
-                }
-                break;
-            }
-            default:
-                break;
-            }
-
-            if (handled) {
-                updateEmojiPageStatus(commonList.get());
-                ic_->updateUserInterface(UserInterfaceComponent::InputPanel);
-                keyEvent.filterAndAccept();
+        void replayBufferToEngine(const std::string& buffer) {
+            if (!lotusEngine_.handle())
                 return;
-            }
-        }
 
-        if (isBackspace(currentSym)) {
-            if (!emojiBuffer_.empty()) {
-                emojiBuffer_.pop_back();
-                while (!emojiBuffer_.empty() &&
-                       (emojiBuffer_.back() & 0xC0) == 0x80) {
-                    emojiBuffer_.pop_back();
+            ResetEngine(lotusEngine_.handle());
+            for (uint32_t c : fcitx::utf8::MakeUTF8CharRange(buffer)) {
+                if (c == static_cast<uint32_t>('\b')) {
+                    EngineProcessKeyEvent(lotusEngine_.handle(), FcitxKey_BackSpace, 0);
+                } else {
+                    EngineProcessKeyEvent(lotusEngine_.handle(), c, 0);
                 }
-                keyEvent.filterAndAccept();
-            } else {
-                keyEvent.forward();
-            }
-            updateEmojiPreedit();
-            return;
-        }
-
-        switch (currentSym) {
-        case FcitxKey_space:
-        case FcitxKey_Return: {
-            if (commonList && !commonList->empty()) {
-                int globalIdx = commonList->globalCursorIndex();
-                commonList->candidateFromAll(globalIdx).select(ic_);
-                keyEvent.filterAndAccept();
-            } else if (currentSym == FcitxKey_Return && !emojiBuffer_.empty()) {
-                ic_->commitString(emojiBuffer_);
-                emojiBuffer_.clear();
-                ic_->inputPanel().reset();
-                ic_->updateUserInterface(UserInterfaceComponent::InputPanel);
-                keyEvent.filterAndAccept();
-            } else {
-                keyEvent.forward();
-            }
-            return;
-        }
-
-        case FcitxKey_Escape: {
-            emojiBuffer_.clear();
-            emojiCandidates_.clear();
-            ic_->inputPanel().reset();
-            ic_->updateUserInterface(UserInterfaceComponent::InputPanel);
-            keyEvent.filterAndAccept();
-            return;
-        }
-
-        default:
-            break;
-        }
-
-        {
-            std::string utf8Char = Key::keySymToUTF8(currentSym);
-            if (!utf8Char.empty()) {
-                emojiBuffer_ += utf8Char;
-                keyEvent.filterAndAccept();
-                updateEmojiPreedit();
-            } else {
-                keyEvent.forward();
             }
         }
-    }
 
-    void selectEmojiCandidate(int index) {
-        if (index >= 0 && index < static_cast<int>(emojiCandidates_.size())) {
-            ic_->commitString(emojiCandidates_[index].output);
-            emojiBuffer_.clear();
-            emojiCandidates_.clear();
-            ic_->inputPanel().reset();
-            ic_->updateUserInterface(UserInterfaceComponent::InputPanel);
+        bool isAutofillCertain(const SurroundingText& s) {
+            if (!s.isValid() || oldPreBuffer_.empty()) {
+                return false;
+            }
+
+            int cursor = s.cursor();
+            int anchor = s.anchor();
+
+            // This alway is false
+            if (cursor != anchor) {
+                int selectionStart = std::min(anchor, cursor);
+                int selectionEnd   = std::max(anchor, cursor);
+
+                if (selectionStart >= cursor || (selectionStart < cursor && selectionEnd > cursor)) {
+                    return true;
+                }
+            }
+
+            const auto& text    = s.text();
+            size_t      textLen = fcitx_utf8_strlen(text.c_str());
+
+            // Guard?
+            // if (textLen <= static_cast<size_t>(realtextLen))
+            //     realtextLen = textLen;
+
+            if (textLen == static_cast<size_t>(cursor)) {
+                realtextLen = textLen;
+                return false;
+            }
+
+            // Text exists after cursor AND cursor is exactly where we expected
+            // (realtextLen tracks where cursor should be after our last commit).
+            // This is the only reliable signal that the app appended a suggestion.
+            // why -1?? cuz some SurroundingText is only update on event
+            // so when u type "12345" surronding text is "1234" it will
+            // update to "12345" when next u type "6" so this will make
+            // work correctly when cursor in the middle of the string
+            // Failed with:
+            //              a.com[/] + 's' -> a.coóm // Bad
+            //              a.co[m/] + 's' -> a.có   // Good
+            if (textLen - 1 > static_cast<size_t>(cursor) && cursor == realtextLen)
+                return true;
+
+            if (realtextLen < cursor)
+                realtextLen = cursor;
+
+            return false;
         }
-    }
 
-    void updateEmojiPreedit() {
-        if (emojiBuffer_.empty()) {
-            emojiCandidates_.clear();
+        // Helper function for preedit mode
+        void handlePreeditMode(KeyEvent& keyEvent) {
+            if (EngineProcessKeyEvent(lotusEngine_.handle(), keyEvent.rawKey().sym(), keyEvent.rawKey().states()))
+                keyEvent.filterAndAccept();
+            if (char* commit = EnginePullCommit(lotusEngine_.handle())) {
+                if (commit[0])
+                    ic_->commitString(commit);
+                free(commit);
+            }
             ic_->inputPanel().reset();
+            UniqueCPtr<char> preedit(EnginePullPreedit(lotusEngine_.handle()));
+            if (preedit && preedit.get()[0]) {
+                std::string_view view = preedit.get();
+                Text             text;
+                TextFormatFlags  fmt = TextFormatFlag::NoFlag;
+                if (utf8::validate(view))
+                    text.append(std::string(view), fmt);
+                text.setCursor(text.textLength());
+                if (ic_->capabilityFlags().test(CapabilityFlag::Preedit))
+                    ic_->inputPanel().setClientPreedit(text);
+                else
+                    ic_->inputPanel().setPreedit(text);
+            }
             ic_->updatePreedit();
             ic_->updateUserInterface(UserInterfaceComponent::InputPanel);
-            return;
         }
 
-        emojiCandidates_ = engine_->emojiLoader().search(emojiBuffer_);
-
-        if (!emojiBuffer_.empty()) {
-            Text preeditText;
-            preeditText.append(emojiBuffer_, TextFormatFlag::Underline);
-            preeditText.setCursor(preeditText.textLength());
-            if (ic_->capabilityFlags().test(CapabilityFlag::Preedit))
-                ic_->inputPanel().setClientPreedit(preeditText);
-            else
-                ic_->inputPanel().setPreedit(preeditText);
-        }
-
-        if (!emojiCandidates_.empty()) {
-            auto candidateList = std::make_unique<CommonCandidateList>();
-            candidateList->setLayoutHint(CandidateLayoutHint::Vertical);
-            candidateList->setPageSize(9);
-
-            for (size_t i = 0; i < emojiCandidates_.size(); ++i) {
-                int localIndex = i % 9 + 1;
-                Text displayLabel(std::to_string(localIndex) + ": " +
-                                  emojiCandidates_[i].trigger + " " +
-                                  emojiCandidates_[i].output);
-                candidateList->append(std::make_unique<EmojiCandidateWord>(
-                    displayLabel, this, emojiCandidates_[i].output));
+        // Helper function for emoji mode
+        void updateEmojiPageStatus(CommonCandidateList* commonList) {
+            if (!commonList || commonList->empty()) {
+                return;
             }
-            candidateList->setGlobalCursorIndex(0);
 
-            ic_->inputPanel().setCandidateList(std::move(candidateList));
-            auto currentList = std::dynamic_pointer_cast<CommonCandidateList>(
-                ic_->inputPanel().candidateList());
-            updateEmojiPageStatus(currentList.get());
-        } else {
-            ic_->inputPanel().setCandidateList(nullptr);
-        }
-
-        ic_->updatePreedit();
-        ic_->updateUserInterface(UserInterfaceComponent::InputPanel);
-    }
-
-    bool handleUInputKeyPress(KeyEvent &event, KeySym currentSym,
-                              int sleepTime) {
-        if (!is_deleting_.load()) {
-            return false;
-        }
-        if (isBackspace(currentSym)) {
-            current_backspace_count_ += 1;
-            if (current_backspace_count_ < expected_backspaces_) {
-                return false;
-            } else {
-                is_deleting_.store(false);
-                replacement_start_ms_.store(0, std::memory_order_release);
-                replacement_thread_id_.store(0, std::memory_order_release);
-                std::this_thread::sleep_for(
-                    std::chrono::milliseconds(sleepTime));
-                ic_->commitString(pending_commit_string_);
-                expected_backspaces_ = 0;
-                current_backspace_count_ = -1;
-                pending_commit_string_ = "";
-
-                event.filterAndAccept();
-                return true;
+            int pageSize = commonList->pageSize();
+            if (pageSize <= 0) {
+                pageSize = 9;
             }
-        }
-        return false;
-    }
 
-    void performReplacement(const std::string &deletedPart,
-                            const std::string &addedPart) {
-        int my_id = ++current_thread_id_;
-        current_backspace_count_ = 0;
-        pending_commit_string_ = addedPart;
-        const auto &surrounding = ic_->surroundingText();
-        expected_backspaces_ = utf8::length(deletedPart) + 1 +
-                               (isAutofillCertain(surrounding) ? 1 : 0);
-        replacement_thread_id_.store(my_id, std::memory_order_release);
-        replacement_start_ms_.store(now_ms(), std::memory_order_release);
-        is_deleting_.store(true, std::memory_order_release);
-        monitor_cv.notify_one();
-        send_backspace_uinput(expected_backspaces_);
-    }
+            int         totalItems  = commonList->totalSize();
+            int         currentPage = commonList->currentPage() + 1;
+            int         totalPages  = (totalItems + pageSize - 1) / pageSize;
 
-    void checkForwardSpecialKey(KeyEvent &keyEvent, KeySym &currentSym) {
-        if (keyEvent.key().isCursorMove() || currentSym == FcitxKey_Tab ||
-            currentSym == FcitxKey_KP_Tab ||
-            currentSym == FcitxKey_ISO_Left_Tab ||
-            currentSym == FcitxKey_Escape || keyEvent.key().hasModifier()) {
-            history_.clear();
-            ResetEngine(lotusEngine_.handle());
-            oldPreBuffer_.clear();
-            keyEvent.forward();
-            return;
+            std::string status = _("Page ") + std::to_string(currentPage) + "/" + std::to_string(totalPages);
+            ic_->inputPanel().setAuxDown(Text(status));
         }
 
-        if (currentSym == FcitxKey_Delete) {
-            keyEvent.forward();
-            return;
-        }
+        void handleEmojiMode(KeyEvent& keyEvent) {
+            if (keyEvent.key().hasModifier()) {
+                keyEvent.forward();
+                return;
+            }
 
-        if (currentSym >= FcitxKey_KP_0 && currentSym <= FcitxKey_KP_9) {
-            currentSym =
-                static_cast<KeySym>(FcitxKey_0 + (currentSym - FcitxKey_KP_0));
-        }
+            const KeySym currentSym = keyEvent.rawKey().sym();
 
-        switch (currentSym) {
-        case FcitxKey_KP_Add: {
-            currentSym = FcitxKey_plus;
-            break;
-        }
-        case FcitxKey_KP_Subtract: {
-            currentSym = FcitxKey_minus;
-            break;
-        }
-        case FcitxKey_KP_Divide: {
-            currentSym = FcitxKey_slash;
-            break;
-        }
-        case FcitxKey_KP_Multiply: {
-            currentSym = FcitxKey_asterisk;
-            break;
-        }
-        case FcitxKey_KP_Decimal: {
-            currentSym = FcitxKey_period;
-            break;
-        }
-        case FcitxKey_KP_Enter: {
-            currentSym = FcitxKey_Return;
-            break;
-        }
-        case FcitxKey_KP_Equal: {
-            currentSym = FcitxKey_equal;
-            break;
-        }
-        case FcitxKey_KP_Space: {
-            currentSym = FcitxKey_space;
-            break;
-        }
-        default:
-            break;
-        }
-    }
+            auto         baseList   = ic_->inputPanel().candidateList();
+            auto         commonList = std::dynamic_pointer_cast<CommonCandidateList>(baseList);
+            if (commonList && currentSym >= FcitxKey_1 && currentSym <= FcitxKey_9) {
+                int offset      = currentSym - FcitxKey_1;
+                int globalIndex = commonList->currentPage() * commonList->pageSize() + offset;
 
-    // Helper function for uinput mode
-    void handleUinputMode(KeyEvent &keyEvent, KeySym currentSym,
-                          bool checkEmptyPreedit, int sleepTime) {
-        checkForwardSpecialKey(keyEvent, currentSym);
-        if (is_deleting_.load(std::memory_order_acquire)) {
-            if (isBackspace(currentSym)) {
-                if (realtextLen > 0)
-                    realtextLen -= 1;
-                if (handleUInputKeyPress(keyEvent, currentSym, sleepTime)) {
+                if (globalIndex < (int)commonList->totalSize()) {
+                    commonList->candidateFromAll(globalIndex).select(ic_);
+                    keyEvent.filterAndAccept();
                     return;
                 }
-            } else {
-                keyEvent.filterAndAccept();
             }
-            return;
-        }
 
-        if (uinput_client_fd_ < 0) {
-            setup_uinput();
-        }
+            if (commonList && !commonList->empty()) {
+                int  globalCursorIndex = commonList->globalCursorIndex();
+                int  totalSize         = commonList->totalSize();
+                int  currentPage       = commonList->currentPage();
+                int  pageSize          = commonList->pageSize();
+                int  localCursorIndex  = globalCursorIndex - currentPage * pageSize;
 
-        if (isBackspace(currentSym) || currentSym == FcitxKey_Return) {
+                bool handled = false;
+
+                switch (currentSym) {
+                    case FcitxKey_Tab:
+                    case FcitxKey_Down: {
+                        if (globalCursorIndex == totalSize - 1) {
+                            commonList->setGlobalCursorIndex(globalCursorIndex);
+                        } else if (localCursorIndex < pageSize - 1) {
+                            commonList->setGlobalCursorIndex(globalCursorIndex + 1);
+                        } else {
+                            commonList->next();
+                            int newPage = commonList->currentPage();
+                            commonList->setGlobalCursorIndex(newPage * pageSize);
+                        }
+                        handled = true;
+                        break;
+                    }
+
+                    case FcitxKey_ISO_Left_Tab:
+                    case FcitxKey_Up: {
+                        if (globalCursorIndex == 0) {
+                            commonList->setGlobalCursorIndex(globalCursorIndex);
+                        } else if (localCursorIndex > 0) {
+                            commonList->setGlobalCursorIndex(globalCursorIndex - 1);
+                        } else {
+                            commonList->prev();
+                            int newPage  = commonList->currentPage();
+                            int newIndex = newPage * pageSize + pageSize - 1;
+                            commonList->setGlobalCursorIndex(newIndex);
+                        }
+                        handled = true;
+                        break;
+                    }
+                    case FcitxKey_Page_Down:
+                    case FcitxKey_Right: {
+                        if (commonList->hasNext()) {
+                            commonList->next();
+                            int newPage = commonList->currentPage();
+                            commonList->setGlobalCursorIndex(newPage * pageSize);
+                            handled = true;
+                        }
+                        break;
+                    }
+                    case FcitxKey_Page_Up:
+                    case FcitxKey_Left: {
+                        if (commonList->hasPrev()) {
+                            commonList->prev();
+                            int newPage = commonList->currentPage();
+                            commonList->setGlobalCursorIndex(newPage * pageSize);
+                            handled = true;
+                        }
+                        break;
+                    }
+                    default: break;
+                }
+
+                if (handled) {
+                    updateEmojiPageStatus(commonList.get());
+                    ic_->updateUserInterface(UserInterfaceComponent::InputPanel);
+                    keyEvent.filterAndAccept();
+                    return;
+                }
+            }
+
             if (isBackspace(currentSym)) {
-                history_.push_back('\b');
-                replayBufferToEngine(history_);
-                UniqueCPtr<char> preeditC(
-                    EnginePullPreedit(lotusEngine_.handle()));
-                oldPreBuffer_ =
-                    (preeditC && preeditC.get()[0]) ? preeditC.get() : "";
-            } else {
-                history_.clear();
-                ResetEngine(lotusEngine_.handle());
-                oldPreBuffer_.clear();
-            }
-            keyEvent.forward();
-            return;
-        }
-
-        std::string keyUtf8 = Key::keySymToUTF8(currentSym);
-        if (keyUtf8.empty()) {
-            keyEvent.forward();
-            return;
-        }
-
-        bool processed = EngineProcessKeyEvent(
-            lotusEngine_.handle(), currentSym, keyEvent.rawKey().states());
-
-        auto commitF =
-            UniqueCPtr<char>(EnginePullCommit(lotusEngine_.handle()));
-        if (commitF && commitF.get()[0]) {
-            std::string commitStr = commitF.get();
-            std::string commonPrefix, deletedPart, addedPart;
-            compareAndSplitStrings(oldPreBuffer_, commitStr, commonPrefix,
-                                   deletedPart, addedPart);
-
-            if (!deletedPart.empty()) {
-                performReplacement(deletedPart, addedPart);
-            } else if (!addedPart.empty()) {
-                ic_->commitString(addedPart);
-            }
-
-            history_.clear();
-            ResetEngine(lotusEngine_.handle());
-            oldPreBuffer_.clear();
-
-            keyEvent.filterAndAccept();
-            return;
-        }
-
-        if (!processed) {
-            if (checkEmptyPreedit) {
-                UniqueCPtr<char> preeditC(
-                    EnginePullPreedit(lotusEngine_.handle()));
-                if (!preeditC || !preeditC.get()[0]) {
-                    history_.clear();
-                    oldPreBuffer_.clear();
+                if (!emojiBuffer_.empty()) {
+                    emojiBuffer_.pop_back();
+                    while (!emojiBuffer_.empty() && (emojiBuffer_.back() & 0xC0) == 0x80) {
+                        emojiBuffer_.pop_back();
+                    }
+                    keyEvent.filterAndAccept();
+                } else {
                     keyEvent.forward();
                 }
+                updateEmojiPreedit();
+                return;
             }
-            return;
-        }
 
-        history_ += keyUtf8;
-        realtextLen += 1;
-
-        replayBufferToEngine(history_);
-
-        auto commitAfterReplay =
-            UniqueCPtr<char>(EnginePullCommit(lotusEngine_.handle()));
-        if (commitAfterReplay && commitAfterReplay.get()[0]) {
-            history_.clear();
-            ResetEngine(lotusEngine_.handle());
-            oldPreBuffer_.clear();
-            return;
-        }
-        keyEvent.filterAndAccept();
-        UniqueCPtr<char> preeditC(EnginePullPreedit(lotusEngine_.handle()));
-        std::string preeditStr =
-            (preeditC && preeditC.get()[0]) ? preeditC.get() : "";
-
-        std::string commonPrefix, deletedPart, addedPart;
-        if (compareAndSplitStrings(oldPreBuffer_, preeditStr, commonPrefix,
-                                   deletedPart, addedPart)) {
-            if (deletedPart.empty()) {
-                if (!addedPart.empty()) {
-                    ic_->commitString(addedPart);
-                    oldPreBuffer_ = preeditStr;
-                }
-            } else {
-                if (uinput_client_fd_ < 0) {
-                    std::string rawKey = keyEvent.key().toString();
-                    if (!rawKey.empty()) {
-                        ic_->commitString(rawKey);
+            switch (currentSym) {
+                case FcitxKey_space:
+                case FcitxKey_Return: {
+                    if (commonList && !commonList->empty()) {
+                        int globalIdx = commonList->globalCursorIndex();
+                        commonList->candidateFromAll(globalIdx).select(ic_);
+                        keyEvent.filterAndAccept();
+                    } else if (currentSym == FcitxKey_Return && !emojiBuffer_.empty()) {
+                        ic_->commitString(emojiBuffer_);
+                        emojiBuffer_.clear();
+                        ic_->inputPanel().reset();
+                        ic_->updateUserInterface(UserInterfaceComponent::InputPanel);
+                        keyEvent.filterAndAccept();
+                    } else {
+                        keyEvent.forward();
                     }
                     return;
                 }
 
-                if (is_deleting_.load()) {
-                    is_deleting_.store(false, std::memory_order_release);
+                case FcitxKey_Escape: {
+                    emojiBuffer_.clear();
+                    emojiCandidates_.clear();
+                    ic_->inputPanel().reset();
+                    ic_->updateUserInterface(UserInterfaceComponent::InputPanel);
+                    keyEvent.filterAndAccept();
+                    return;
                 }
 
-                performReplacement(deletedPart, addedPart);
-                oldPreBuffer_ = preeditStr;
+                default: break;
+            }
+
+            {
+                std::string utf8Char = Key::keySymToUTF8(currentSym);
+                if (!utf8Char.empty()) {
+                    emojiBuffer_ += utf8Char;
+                    keyEvent.filterAndAccept();
+                    updateEmojiPreedit();
+                } else {
+                    keyEvent.forward();
+                }
             }
         }
-    }
 
-    void handleSurroundingText(KeyEvent &keyEvent, KeySym currentSym) {
-        checkForwardSpecialKey(keyEvent, currentSym);
-        auto ic = keyEvent.inputContext();
-        if (!ic ||
-            !ic->capabilityFlags().test(CapabilityFlag::SurroundingText)) {
-            keyEvent.forward();
-            return;
+        void selectEmojiCandidate(int index) {
+            if (index >= 0 && index < static_cast<int>(emojiCandidates_.size())) {
+                ic_->commitString(emojiCandidates_[index].output);
+                emojiBuffer_.clear();
+                emojiCandidates_.clear();
+                ic_->inputPanel().reset();
+                ic_->updateUserInterface(UserInterfaceComponent::InputPanel);
+            }
         }
 
-        const auto &surrounding = ic->surroundingText();
-        if (!surrounding.isValid()) {
-            keyEvent.forward();
-            return;
-        }
+        void updateEmojiPreedit() {
+            if (emojiBuffer_.empty()) {
+                emojiCandidates_.clear();
+                ic_->inputPanel().reset();
+                ic_->updatePreedit();
+                ic_->updateUserInterface(UserInterfaceComponent::InputPanel);
+                return;
+            }
 
-        if (isBackspace(keyEvent.rawKey().sym())) {
-            ResetEngine(lotusEngine_.handle());
-            keyEvent.forward();
-            return;
-        }
+            emojiCandidates_ = engine_->emojiLoader().search(emojiBuffer_);
 
-        if (surrounding.anchor() != surrounding.cursor()) {
-            ic->deleteSurroundingText(0, 0);
-        }
+            if (!emojiBuffer_.empty()) {
+                Text preeditText;
+                preeditText.append(emojiBuffer_, TextFormatFlag::Underline);
+                preeditText.setCursor(preeditText.textLength());
+                if (ic_->capabilityFlags().test(CapabilityFlag::Preedit))
+                    ic_->inputPanel().setClientPreedit(preeditText);
+                else
+                    ic_->inputPanel().setPreedit(preeditText);
+            }
 
-        const std::string &text = surrounding.text();
-        int cursor = surrounding.cursor();
+            if (!emojiCandidates_.empty()) {
+                auto candidateList = std::make_unique<CommonCandidateList>();
+                candidateList->setLayoutHint(CandidateLayoutHint::Vertical);
+                candidateList->setPageSize(9);
 
-        size_t textLen = utf8::lengthValidated(text);
-
-        if (textLen == utf8::INVALID_LENGTH || cursor <= 0 ||
-            cursor > (int)textLen) {
-            goto process_normal;
-        }
-
-        {
-            auto startIter = utf8::nextNChar(text.begin(), cursor);
-            auto endIter = startIter;
-
-            int scanCount = 0;
-            while (startIter != text.begin() && scanCount < MAX_SCAN_LENGTH) {
-                auto prev = startIter;
-                if (prev != text.begin()) {
-                    do {
-                        --prev;
-                    } while (prev != text.begin() && ((*prev & 0xC0) == 0x80));
+                for (size_t i = 0; i < emojiCandidates_.size(); ++i) {
+                    int  localIndex = i % 9 + 1;
+                    Text displayLabel(std::to_string(localIndex) + ": " + emojiCandidates_[i].trigger + " " + emojiCandidates_[i].output);
+                    candidateList->append(std::make_unique<EmojiCandidateWord>(displayLabel, this, emojiCandidates_[i].output));
                 }
+                candidateList->setGlobalCursorIndex(0);
 
-                uint32_t ucs4 = utf8::getChar(prev, text.end());
+                ic_->inputPanel().setCandidateList(std::move(candidateList));
+                auto currentList = std::dynamic_pointer_cast<CommonCandidateList>(ic_->inputPanel().candidateList());
+                updateEmojiPageStatus(currentList.get());
+            } else {
+                ic_->inputPanel().setCandidateList(nullptr);
+            }
 
-                if (isWordBreak(ucs4))
+            ic_->updatePreedit();
+            ic_->updateUserInterface(UserInterfaceComponent::InputPanel);
+        }
+
+        bool handleUInputKeyPress(KeyEvent& event, KeySym currentSym, int sleepTime) {
+            if (!is_deleting_.load()) {
+                return false;
+            }
+            if (isBackspace(currentSym)) {
+                current_backspace_count_ += 1;
+                if (current_backspace_count_ < expected_backspaces_) {
+                    return false;
+                } else {
+                    is_deleting_.store(false);
+                    replacement_start_ms_.store(0, std::memory_order_release);
+                    replacement_thread_id_.store(0, std::memory_order_release);
+                    std::this_thread::sleep_for(std::chrono::milliseconds(sleepTime));
+                    ic_->commitString(pending_commit_string_);
+                    expected_backspaces_     = 0;
+                    current_backspace_count_ = -1;
+                    pending_commit_string_   = "";
+
+                    event.filterAndAccept();
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        void performReplacement(const std::string& deletedPart, const std::string& addedPart) {
+            int my_id                = ++current_thread_id_;
+            current_backspace_count_ = 0;
+            pending_commit_string_   = addedPart;
+            const auto& surrounding  = ic_->surroundingText();
+            expected_backspaces_     = utf8::length(deletedPart) + 1 + (isAutofillCertain(surrounding) ? 1 : 0);
+            replacement_thread_id_.store(my_id, std::memory_order_release);
+            replacement_start_ms_.store(now_ms(), std::memory_order_release);
+            is_deleting_.store(true, std::memory_order_release);
+            monitor_cv.notify_one();
+            send_backspace_uinput(expected_backspaces_);
+        }
+
+        void checkForwardSpecialKey(KeyEvent& keyEvent, KeySym& currentSym) {
+            if (keyEvent.key().isCursorMove() || currentSym == FcitxKey_Tab || currentSym == FcitxKey_KP_Tab || currentSym == FcitxKey_ISO_Left_Tab ||
+                currentSym == FcitxKey_Escape || keyEvent.key().hasModifier()) {
+                history_.clear();
+                ResetEngine(lotusEngine_.handle());
+                oldPreBuffer_.clear();
+                keyEvent.forward();
+                return;
+            }
+
+            if (currentSym == FcitxKey_Delete) {
+                keyEvent.forward();
+                return;
+            }
+
+            if (currentSym >= FcitxKey_KP_0 && currentSym <= FcitxKey_KP_9) {
+                currentSym = static_cast<KeySym>(FcitxKey_0 + (currentSym - FcitxKey_KP_0));
+            }
+
+            switch (currentSym) {
+                case FcitxKey_KP_Add: {
+                    currentSym = FcitxKey_plus;
                     break;
+                }
+                case FcitxKey_KP_Subtract: {
+                    currentSym = FcitxKey_minus;
+                    break;
+                }
+                case FcitxKey_KP_Divide: {
+                    currentSym = FcitxKey_slash;
+                    break;
+                }
+                case FcitxKey_KP_Multiply: {
+                    currentSym = FcitxKey_asterisk;
+                    break;
+                }
+                case FcitxKey_KP_Decimal: {
+                    currentSym = FcitxKey_period;
+                    break;
+                }
+                case FcitxKey_KP_Enter: {
+                    currentSym = FcitxKey_Return;
+                    break;
+                }
+                case FcitxKey_KP_Equal: {
+                    currentSym = FcitxKey_equal;
+                    break;
+                }
+                case FcitxKey_KP_Space: {
+                    currentSym = FcitxKey_space;
+                    break;
+                }
+                default: break;
+            }
+        }
 
-                startIter = prev;
-                ++scanCount;
+        // Helper function for uinput mode
+        void handleUinputMode(KeyEvent& keyEvent, KeySym currentSym, bool checkEmptyPreedit, int sleepTime) {
+            checkForwardSpecialKey(keyEvent, currentSym);
+            if (is_deleting_.load(std::memory_order_acquire)) {
+                if (isBackspace(currentSym)) {
+                    if (realtextLen > 0)
+                        realtextLen -= 1;
+                    if (handleUInputKeyPress(keyEvent, currentSym, sleepTime)) {
+                        return;
+                    }
+                } else {
+                    keyEvent.filterAndAccept();
+                }
+                return;
             }
 
-            std::string oldWord(startIter, endIter);
+            if (uinput_client_fd_ < 0) {
+                setup_uinput();
+            }
 
-            if (oldWord.empty()) {
+            if (isBackspace(currentSym) || currentSym == FcitxKey_Return) {
+                if (isBackspace(currentSym)) {
+                    history_.push_back('\b');
+                    replayBufferToEngine(history_);
+                    UniqueCPtr<char> preeditC(EnginePullPreedit(lotusEngine_.handle()));
+                    oldPreBuffer_ = (preeditC && preeditC.get()[0]) ? preeditC.get() : "";
+                } else {
+                    history_.clear();
+                    ResetEngine(lotusEngine_.handle());
+                    oldPreBuffer_.clear();
+                }
+                keyEvent.forward();
+                return;
+            }
+
+            std::string keyUtf8 = Key::keySymToUTF8(currentSym);
+            if (keyUtf8.empty()) {
+                keyEvent.forward();
+                return;
+            }
+
+            bool processed = EngineProcessKeyEvent(lotusEngine_.handle(), currentSym, keyEvent.rawKey().states());
+
+            auto commitF = UniqueCPtr<char>(EnginePullCommit(lotusEngine_.handle()));
+            if (commitF && commitF.get()[0]) {
+                std::string commitStr = commitF.get();
+                std::string commonPrefix, deletedPart, addedPart;
+                compareAndSplitStrings(oldPreBuffer_, commitStr, commonPrefix, deletedPart, addedPart);
+
+                if (!deletedPart.empty()) {
+                    performReplacement(deletedPart, addedPart);
+                } else if (!addedPart.empty()) {
+                    ic_->commitString(addedPart);
+                }
+
+                history_.clear();
+                ResetEngine(lotusEngine_.handle());
+                oldPreBuffer_.clear();
+
+                keyEvent.filterAndAccept();
+                return;
+            }
+
+            if (!processed) {
+                if (checkEmptyPreedit) {
+                    UniqueCPtr<char> preeditC(EnginePullPreedit(lotusEngine_.handle()));
+                    if (!preeditC || !preeditC.get()[0]) {
+                        history_.clear();
+                        oldPreBuffer_.clear();
+                        keyEvent.forward();
+                    }
+                }
+                return;
+            }
+
+            history_ += keyUtf8;
+            realtextLen += 1;
+
+            replayBufferToEngine(history_);
+
+            auto commitAfterReplay = UniqueCPtr<char>(EnginePullCommit(lotusEngine_.handle()));
+            if (commitAfterReplay && commitAfterReplay.get()[0]) {
+                history_.clear();
+                ResetEngine(lotusEngine_.handle());
+                oldPreBuffer_.clear();
+                return;
+            }
+            keyEvent.filterAndAccept();
+            UniqueCPtr<char> preeditC(EnginePullPreedit(lotusEngine_.handle()));
+            std::string      preeditStr = (preeditC && preeditC.get()[0]) ? preeditC.get() : "";
+
+            std::string      commonPrefix, deletedPart, addedPart;
+            if (compareAndSplitStrings(oldPreBuffer_, preeditStr, commonPrefix, deletedPart, addedPart)) {
+                if (deletedPart.empty()) {
+                    if (!addedPart.empty()) {
+                        ic_->commitString(addedPart);
+                        oldPreBuffer_ = preeditStr;
+                    }
+                } else {
+                    if (uinput_client_fd_ < 0) {
+                        std::string rawKey = keyEvent.key().toString();
+                        if (!rawKey.empty()) {
+                            ic_->commitString(rawKey);
+                        }
+                        return;
+                    }
+
+                    if (is_deleting_.load()) {
+                        is_deleting_.store(false, std::memory_order_release);
+                    }
+
+                    performReplacement(deletedPart, addedPart);
+                    oldPreBuffer_ = preeditStr;
+                }
+            }
+        }
+
+        void handleSurroundingText(KeyEvent& keyEvent, KeySym currentSym) {
+            checkForwardSpecialKey(keyEvent, currentSym);
+            auto ic = keyEvent.inputContext();
+            if (!ic || !ic->capabilityFlags().test(CapabilityFlag::SurroundingText)) {
+                keyEvent.forward();
+                return;
+            }
+
+            const auto& surrounding = ic->surroundingText();
+            if (!surrounding.isValid()) {
+                keyEvent.forward();
+                return;
+            }
+
+            if (isBackspace(keyEvent.rawKey().sym())) {
+                ResetEngine(lotusEngine_.handle());
+                keyEvent.forward();
+                return;
+            }
+
+            if (surrounding.anchor() != surrounding.cursor()) {
+                ic->deleteSurroundingText(0, 0);
+            }
+
+            const std::string& text   = surrounding.text();
+            int                cursor = surrounding.cursor();
+
+            size_t             textLen = utf8::lengthValidated(text);
+
+            if (textLen == utf8::INVALID_LENGTH || cursor <= 0 || cursor > (int)textLen) {
                 goto process_normal;
             }
 
-            EngineRebuildFromText(lotusEngine_.handle(), oldWord.c_str());
+            {
+                auto startIter = utf8::nextNChar(text.begin(), cursor);
+                auto endIter   = startIter;
 
-            bool processed = EngineProcessKeyEvent(lotusEngine_.handle(),
-                                                   keyEvent.rawKey().sym(),
-                                                   keyEvent.rawKey().states());
+                int  scanCount = 0;
+                while (startIter != text.begin() && scanCount < MAX_SCAN_LENGTH) {
+                    auto prev = startIter;
+                    if (prev != text.begin()) {
+                        do {
+                            --prev;
+                        } while (prev != text.begin() && ((*prev & 0xC0) == 0x80));
+                    }
 
-            if (!processed) {
-                keyEvent.forward();
-                ResetEngine(lotusEngine_.handle());
-                return;
-            }
+                    uint32_t ucs4 = utf8::getChar(prev, text.end());
 
-            auto commitPtr =
-                UniqueCPtr<char>(EnginePullCommit(lotusEngine_.handle()));
-            auto preeditPtr =
-                UniqueCPtr<char>(EnginePullPreedit(lotusEngine_.handle()));
+                    if (isWordBreak(ucs4))
+                        break;
 
-            std::string newWord = "";
-            if (commitPtr && commitPtr.get()[0])
-                newWord += commitPtr.get();
-            if (preeditPtr && preeditPtr.get()[0])
-                newWord += preeditPtr.get();
-
-            std::string commonPrefix, deletedPart, addedPart;
-            compareAndSplitStrings(oldWord, newWord, commonPrefix, deletedPart,
-                                   addedPart);
-            if (deletedPart.empty() && addedPart == keyEvent.key().toString()) {
-                ResetEngine(lotusEngine_.handle());
-                keyEvent.forward();
-                return;
-            }
-
-            if (!deletedPart.empty() || !addedPart.empty()) {
-                size_t charsToDelete = utf8::length(deletedPart);
-
-                if (charsToDelete > 0) {
-                    ic->deleteSurroundingText(-static_cast<int>(charsToDelete),
-                                              static_cast<int>(charsToDelete));
+                    startIter = prev;
+                    ++scanCount;
                 }
 
-                if (!addedPart.empty()) {
-                    ic->commitString(addedPart);
+                std::string oldWord(startIter, endIter);
+
+                if (oldWord.empty()) {
+                    goto process_normal;
+                }
+
+                EngineRebuildFromText(lotusEngine_.handle(), oldWord.c_str());
+
+                bool processed = EngineProcessKeyEvent(lotusEngine_.handle(), keyEvent.rawKey().sym(), keyEvent.rawKey().states());
+
+                if (!processed) {
+                    keyEvent.forward();
+                    ResetEngine(lotusEngine_.handle());
+                    return;
+                }
+
+                auto        commitPtr  = UniqueCPtr<char>(EnginePullCommit(lotusEngine_.handle()));
+                auto        preeditPtr = UniqueCPtr<char>(EnginePullPreedit(lotusEngine_.handle()));
+
+                std::string newWord = "";
+                if (commitPtr && commitPtr.get()[0])
+                    newWord += commitPtr.get();
+                if (preeditPtr && preeditPtr.get()[0])
+                    newWord += preeditPtr.get();
+
+                std::string commonPrefix, deletedPart, addedPart;
+                compareAndSplitStrings(oldWord, newWord, commonPrefix, deletedPart, addedPart);
+                if (deletedPart.empty() && addedPart == keyEvent.key().toString()) {
+                    ResetEngine(lotusEngine_.handle());
+                    keyEvent.forward();
+                    return;
+                }
+
+                if (!deletedPart.empty() || !addedPart.empty()) {
+                    size_t charsToDelete = utf8::length(deletedPart);
+
+                    if (charsToDelete > 0) {
+                        ic->deleteSurroundingText(-static_cast<int>(charsToDelete), static_cast<int>(charsToDelete));
+                    }
+
+                    if (!addedPart.empty()) {
+                        ic->commitString(addedPart);
+                    }
+
+                    ResetEngine(lotusEngine_.handle());
+                    keyEvent.filterAndAccept();
+                    return;
                 }
 
                 ResetEngine(lotusEngine_.handle());
@@ -998,122 +944,108 @@ class LotusState final : public InputContextProperty {
                 return;
             }
 
+        process_normal:
             ResetEngine(lotusEngine_.handle());
-            keyEvent.filterAndAccept();
-            return;
+            bool processed = EngineProcessKeyEvent(lotusEngine_.handle(), keyEvent.rawKey().sym(), keyEvent.rawKey().states());
+            if (processed) {
+                auto        commitPtr  = UniqueCPtr<char>(EnginePullCommit(lotusEngine_.handle()));
+                auto        preeditPtr = UniqueCPtr<char>(EnginePullPreedit(lotusEngine_.handle()));
+                std::string out        = "";
+                if (commitPtr && commitPtr.get()[0])
+                    out += commitPtr.get();
+                if (preeditPtr && preeditPtr.get()[0])
+                    out += preeditPtr.get();
+
+                if (!out.empty())
+                    ic->commitString(out);
+
+                ResetEngine(lotusEngine_.handle());
+                keyEvent.filterAndAccept();
+            } else {
+                keyEvent.forward();
+            }
         }
 
-    process_normal:
-        ResetEngine(lotusEngine_.handle());
-        bool processed = EngineProcessKeyEvent(lotusEngine_.handle(),
-                                               keyEvent.rawKey().sym(),
-                                               keyEvent.rawKey().states());
-        if (processed) {
-            auto commitPtr =
-                UniqueCPtr<char>(EnginePullCommit(lotusEngine_.handle()));
-            auto preeditPtr =
-                UniqueCPtr<char>(EnginePullPreedit(lotusEngine_.handle()));
-            std::string out = "";
-            if (commitPtr && commitPtr.get()[0])
-                out += commitPtr.get();
-            if (preeditPtr && preeditPtr.get()[0])
-                out += preeditPtr.get();
+        void keyEvent(KeyEvent& keyEvent) {
+            if (!lotusEngine_ || keyEvent.isRelease())
+                return;
+            if (uinput_client_fd_ < 0) {
+                connect_uinput_server();
+            }
+            if (current_backspace_count_ >= expected_backspaces_ && is_deleting_.load()) {
+                is_deleting_.store(false);
+                current_backspace_count_ = -1;
+                expected_backspaces_     = 0;
+            }
+            if (needEngineReset.load() &&
+                (realMode == LotusMode::Uinput || realMode == LotusMode::SurroundingText || realMode == LotusMode::UinputHC || realMode == LotusMode::Smooth)) {
+                oldPreBuffer_.clear();
+                history_.clear();
+                ResetEngine(lotusEngine_.handle());
+                is_deleting_.store(false);
+                current_backspace_count_ = -1;
+                needEngineReset.store(false);
+            }
 
-            if (!out.empty())
-                ic->commitString(out);
+            if (needFallbackCommit.load(std::memory_order_acquire)) {
+                needFallbackCommit.store(false, std::memory_order_release);
+                if (current_thread_id_.load(std::memory_order_acquire) == replacement_thread_id_.load(std::memory_order_acquire)) {
+                    if (!pending_commit_string_.empty()) {
+                        ic_->commitString(pending_commit_string_);
+                        pending_commit_string_.clear();
+                    }
+                }
+                replacement_thread_id_.store(0, std::memory_order_release);
+                replacement_start_ms_.store(0, std::memory_order_release);
+            }
+            if (keyEvent.rawKey().check(FcitxKey_Shift_L) || keyEvent.rawKey().check(FcitxKey_Shift_R))
+                return;
+            const KeySym currentSym = keyEvent.rawKey().sym();
 
-            ResetEngine(lotusEngine_.handle());
-            keyEvent.filterAndAccept();
-        } else {
-            keyEvent.forward();
-        }
-    }
-
-    void keyEvent(KeyEvent &keyEvent) {
-        if (!lotusEngine_ || keyEvent.isRelease())
-            return;
-        if (uinput_client_fd_ < 0) {
-            connect_uinput_server();
-        }
-        if (current_backspace_count_ >= expected_backspaces_ &&
-            is_deleting_.load()) {
-            is_deleting_.store(false);
-            current_backspace_count_ = -1;
-            expected_backspaces_ = 0;
-        }
-        if (needEngineReset.load() && (realMode == LotusMode::Uinput ||
-                                       realMode == LotusMode::SurroundingText ||
-                                       realMode == LotusMode::UinputHC ||
-                                       realMode == LotusMode::Smooth)) {
-            oldPreBuffer_.clear();
-            history_.clear();
-            ResetEngine(lotusEngine_.handle());
-            is_deleting_.store(false);
-            current_backspace_count_ = -1;
-            needEngineReset.store(false);
-        }
-
-        if (needFallbackCommit.load(std::memory_order_acquire)) {
-            needFallbackCommit.store(false, std::memory_order_release);
-            if (current_thread_id_.load(std::memory_order_acquire) ==
-                replacement_thread_id_.load(std::memory_order_acquire)) {
-                if (!pending_commit_string_.empty()) {
-                    ic_->commitString(pending_commit_string_);
-                    pending_commit_string_.clear();
+            switch (realMode) {
+                case LotusMode::Uinput: {
+                    handleUinputMode(keyEvent, currentSym, true, 20);
+                    break;
+                }
+                case LotusMode::UinputHC: {
+                    handleUinputMode(keyEvent, currentSym, false, 20);
+                    break;
+                }
+                case LotusMode::SurroundingText: {
+                    handleSurroundingText(keyEvent, currentSym);
+                    break;
+                }
+                case LotusMode::Preedit: {
+                    handlePreeditMode(keyEvent);
+                    break;
+                }
+                case LotusMode::Emoji: {
+                    handleEmojiMode(keyEvent);
+                    break;
+                }
+                case LotusMode::Smooth: {
+                    handleUinputMode(keyEvent, currentSym, true, 5);
+                    break;
+                }
+                default: {
+                    break;
                 }
             }
-            replacement_thread_id_.store(0, std::memory_order_release);
-            replacement_start_ms_.store(0, std::memory_order_release);
         }
-        if (keyEvent.rawKey().check(FcitxKey_Shift_L) ||
-            keyEvent.rawKey().check(FcitxKey_Shift_R))
-            return;
-        const KeySym currentSym = keyEvent.rawKey().sym();
 
-        switch (realMode) {
-        case LotusMode::Uinput: {
-            handleUinputMode(keyEvent, currentSym, true, 20);
-            break;
-        }
-        case LotusMode::UinputHC: {
-            handleUinputMode(keyEvent, currentSym, false, 20);
-            break;
-        }
-        case LotusMode::SurroundingText: {
-            handleSurroundingText(keyEvent, currentSym);
-            break;
-        }
-        case LotusMode::Preedit: {
-            handlePreeditMode(keyEvent);
-            break;
-        }
-        case LotusMode::Emoji: {
-            handleEmojiMode(keyEvent);
-            break;
-        }
-        case LotusMode::Smooth: {
-            handleUinputMode(keyEvent, currentSym, true, 5);
-            break;
-        }
-        default: {
-            break;
-        }
-        }
-    }
-
-    void reset() {
-        // TODO: This will report wrong when use mouse
-        // click into the url bar that will select the cursor
-        // pos now is 0 and realtextLen = textLen. Then the text
-        // is select this not suggestion so can't sent 2 backspace
-        // But in other case if click to the url bar in the first
-        // place cursor pos is 0 and realtextLen = textLen too.
-        // So we need get value of SurroundingText::selectedText()
-        // but maybe can use that cus cursor alway = anchor in this
-        // code base in uinput mode
-        //
-        // https://github.com/fcitx/fcitx5/blob/master/src/lib/fcitx/surroundingtext.cpp
-        /*
+        void reset() {
+            // TODO: This will report wrong when use mouse
+            // click into the url bar that will select the cursor
+            // pos now is 0 and realtextLen = textLen. Then the text
+            // is select this not suggestion so can't sent 2 backspace
+            // But in other case if click to the url bar in the first
+            // place cursor pos is 0 and realtextLen = textLen too.
+            // So we need get value of SurroundingText::selectedText()
+            // but maybe can use that cus cursor alway = anchor in this
+            // code base in uinput mode
+            //
+            // https://github.com/fcitx/fcitx5/blob/master/src/lib/fcitx/surroundingtext.cpp
+            /*
           std::string SurroundingText::selectedText() const {
             FCITX_D();
             auto start = std::min(anchor(), cursor());
@@ -1145,269 +1077,253 @@ class LotusState final : public InputContextProperty {
         }
         */
 
-        const auto &surrounding = ic_->surroundingText();
-        const auto &text = surrounding.text();
-        size_t textLen = fcitx_utf8_strlen(text.c_str());
-        realtextLen = textLen;
-        if (is_deleting_.load(std::memory_order_acquire)) {
-            return;
-        }
-        is_deleting_.store(false);
-
-        // Commit pending preedit text before clearing buffers to prevent data
-        // loss. Strategy: Call EngineCommitPreedit() first (for Preedit mode
-        // finalization), then pull any remaining preedit text (for other modes
-        // like Uinput/Smooth). This ensures text is saved regardless of which
-        // mode we're switching from.
-        if (lotusEngine_) {
-            // Finalize preedit properly (required for Preedit mode)
-            if (realMode == LotusMode::Preedit) {
-                EngineCommitPreedit(lotusEngine_.handle());
-                UniqueCPtr<char> commit(
-                    EnginePullCommit(lotusEngine_.handle()));
-                if (commit && commit.get()[0]) {
-                    ic_->commitString(commit.get());
-                }
+            const auto& surrounding = ic_->surroundingText();
+            const auto& text        = surrounding.text();
+            size_t      textLen     = fcitx_utf8_strlen(text.c_str());
+            realtextLen             = textLen;
+            if (is_deleting_.load(std::memory_order_acquire)) {
+                return;
             }
-        }
+            is_deleting_.store(false);
 
-        clearAllBuffers();
-
-        switch (realMode) {
-        case LotusMode::Preedit: {
-            ic_->inputPanel().reset();
-            ic_->updateUserInterface(UserInterfaceComponent::InputPanel);
-            ic_->updatePreedit();
-            break;
-        }
-        case LotusMode::SurroundingText:
-        case LotusMode::Uinput:
-        case LotusMode::UinputHC:
-        case LotusMode::Smooth: {
-            ic_->inputPanel().reset();
-            break;
-        }
-        case LotusMode::Emoji: {
-            ic_->inputPanel().reset();
-            ic_->updateUserInterface(UserInterfaceComponent::InputPanel);
-            ic_->updatePreedit();
-            break;
-        }
-        default: {
-            break;
-        }
-        }
-    }
-
-    void commitBuffer() {
-        switch (realMode) {
-        case LotusMode::Preedit: {
-            ic_->inputPanel().reset();
+            // Commit pending preedit text before clearing buffers to prevent data
+            // loss. Strategy: Call EngineCommitPreedit() first (for Preedit mode
+            // finalization), then pull any remaining preedit text (for other modes
+            // like Uinput/Smooth). This ensures text is saved regardless of which
+            // mode we're switching from.
             if (lotusEngine_) {
-                EngineCommitPreedit(lotusEngine_.handle());
-                UniqueCPtr<char> commit(
-                    EnginePullCommit(lotusEngine_.handle()));
-                if (commit && commit.get()[0])
-                    ic_->commitString(commit.get());
-            }
-            ic_->updateUserInterface(UserInterfaceComponent::InputPanel);
-            ic_->updatePreedit();
-            break;
-        }
-        case LotusMode::Uinput:
-        case LotusMode::UinputHC:
-        case LotusMode::Smooth: {
-            // For uinput modes: commit pending preedit when focus changes
-            // (e.g., when user tabs to another field while typing)
-            if (lotusEngine_) {
-                UniqueCPtr<char> preedit(
-                    EnginePullPreedit(lotusEngine_.handle()));
-                if (preedit && preedit.get()[0]) {
-                    ic_->commitString(preedit.get());
-                }
-            }
-            break;
-        }
-        case LotusMode::SurroundingText: {
-            if (lotusEngine_)
-                ResetEngine(lotusEngine_.handle());
-            break;
-        }
-        default: {
-            break;
-        }
-        }
-    }
-
-    void clearAllBuffers() {
-        if (is_deleting_.load(std::memory_order_acquire)) {
-            return;
-        }
-        oldPreBuffer_.clear();
-        history_.clear();
-        if (!is_deleting_.load(std::memory_order_acquire)) {
-            expected_backspaces_ = 0;
-            current_backspace_count_ = 0;
-            pending_commit_string_.clear();
-        }
-        emojiBuffer_.clear();
-        emojiCandidates_.clear();
-        if (lotusEngine_)
-            ResetEngine(lotusEngine_.handle());
-    }
-
-    bool isEmptyHistory() { return history_.empty(); }
-
-  private:
-    struct EmojiCandidateWord : public CandidateWord {
-        LotusState *state_;
-        std::string emojiOutput_;
-        EmojiCandidateWord(Text text, LotusState *state,
-                           const std::string &emojiOutput)
-            : CandidateWord(std::move(text)), state_(state),
-              emojiOutput_(emojiOutput) {}
-
-        void select(InputContext *inputContext) const override {
-            FCITX_UNUSED(inputContext);
-            state_->ic_->commitString(emojiOutput_);
-
-            state_->emojiBuffer_.clear();
-            state_->emojiCandidates_.clear();
-
-            state_->ic_->inputPanel().reset();
-            state_->ic_->updateUserInterface(
-                UserInterfaceComponent::InputPanel);
-            state_->ic_->updatePreedit();
-        }
-    };
-    LotusEngine *engine_;
-    InputContext *ic_;
-    CGoObject lotusEngine_;
-    std::string oldPreBuffer_;
-    std::string history_;
-    size_t expected_backspaces_ = 0;
-    size_t current_backspace_count_ = 0;
-    std::string pending_commit_string_;
-    std::atomic<int> current_thread_id_{0};
-    // Emoji mode variables
-    std::string emojiBuffer_;
-    std::vector<EmojiEntry> emojiCandidates_;
-};
-
-void mousePressResetThread() {
-    const std::string mouse_socket_path = buildSocketPath("mouse_socket");
-
-    while (!stop_flag_monitor.load(std::memory_order_relaxed)) {
-        int sock = socket(AF_UNIX, SOCK_STREAM, 0);
-        if (sock < 0) {
-            sleep(1);
-            continue;
-        }
-
-        struct sockaddr_un addr{};
-        addr.sun_family = AF_UNIX;
-        addr.sun_path[0] = '\0';
-        memcpy(addr.sun_path + 1, mouse_socket_path.c_str(),
-               mouse_socket_path.length());
-        socklen_t len = offsetof(struct sockaddr_un, sun_path) +
-                        mouse_socket_path.length() + 1;
-
-        // Connect to socket
-        if (connect(sock, (struct sockaddr *)&addr, len) < 0) {
-            close(sock);
-            sleep(1); // Wait for socket to be ready
-            continue;
-        }
-        mouse_socket_fd.store(sock, std::memory_order_release);
-
-        struct pollfd pfd;
-        pfd.fd = sock;
-        pfd.events = POLLIN;
-
-        while (!stop_flag_monitor.load(std::memory_order_relaxed)) {
-            int ret = poll(&pfd, 1, -1);
-
-            if (ret > 0 && (pfd.revents & POLLIN)) {
-                char buf[16];
-                ssize_t n = recv(sock, buf, sizeof(buf), 0);
-
-                if (n <= 0) {
-                    break;
-                }
-
-                // Check app name
-                struct ucred cred;
-                socklen_t len = sizeof(struct ucred);
-                char exe_path[PATH_MAX] = {0};
-                if (getsockopt(sock, SOL_SOCKET, SO_PEERCRED, &cred, &len) ==
-                    0) {
-                    char path[64];
-                    snprintf(path, sizeof(path), "/proc/%d/exe", cred.pid);
-                    ssize_t ret =
-                        readlink(path, exe_path, sizeof(exe_path) - 1);
-                    if (ret != -1) {
-                        exe_path[ret] = '\0';
+                // Finalize preedit properly (required for Preedit mode)
+                if (realMode == LotusMode::Preedit) {
+                    EngineCommitPreedit(lotusEngine_.handle());
+                    UniqueCPtr<char> commit(EnginePullCommit(lotusEngine_.handle()));
+                    if (commit && commit.get()[0]) {
+                        ic_->commitString(commit.get());
                     }
                 }
+            }
 
-                if (n > 0 &&
-                    strcmp(exe_path, "/usr/bin/fcitx5-lotus-server") == 0) {
-                    needEngineReset.store(true, std::memory_order_relaxed);
-                    // Also signal that mouse was clicked to close app mode menu
-                    g_mouse_clicked.store(true, std::memory_order_relaxed);
+            clearAllBuffers();
+
+            switch (realMode) {
+                case LotusMode::Preedit: {
+                    ic_->inputPanel().reset();
+                    ic_->updateUserInterface(UserInterfaceComponent::InputPanel);
+                    ic_->updatePreedit();
+                    break;
                 }
-            } else if (ret < 0 && errno != EINTR) {
-                break;
+                case LotusMode::SurroundingText:
+                case LotusMode::Uinput:
+                case LotusMode::UinputHC:
+                case LotusMode::Smooth: {
+                    ic_->inputPanel().reset();
+                    break;
+                }
+                case LotusMode::Emoji: {
+                    ic_->inputPanel().reset();
+                    ic_->updateUserInterface(UserInterfaceComponent::InputPanel);
+                    ic_->updatePreedit();
+                    break;
+                }
+                default: {
+                    break;
+                }
             }
         }
-        close(sock);
-        mouse_socket_fd.store(-1, std::memory_order_release);
-    }
-}
 
-void startMouseReset() { std::thread(mousePressResetThread).detach(); }
+        void commitBuffer() {
+            switch (realMode) {
+                case LotusMode::Preedit: {
+                    ic_->inputPanel().reset();
+                    if (lotusEngine_) {
+                        EngineCommitPreedit(lotusEngine_.handle());
+                        UniqueCPtr<char> commit(EnginePullCommit(lotusEngine_.handle()));
+                        if (commit && commit.get()[0])
+                            ic_->commitString(commit.get());
+                    }
+                    ic_->updateUserInterface(UserInterfaceComponent::InputPanel);
+                    ic_->updatePreedit();
+                    break;
+                }
+                case LotusMode::Uinput:
+                case LotusMode::UinputHC:
+                case LotusMode::Smooth: {
+                    // For uinput modes: commit pending preedit when focus changes
+                    // (e.g., when user tabs to another field while typing)
+                    if (lotusEngine_) {
+                        UniqueCPtr<char> preedit(EnginePullPreedit(lotusEngine_.handle()));
+                        if (preedit && preedit.get()[0]) {
+                            ic_->commitString(preedit.get());
+                        }
+                    }
+                    break;
+                }
+                case LotusMode::SurroundingText: {
+                    if (lotusEngine_)
+                        ResetEngine(lotusEngine_.handle());
+                    break;
+                }
+                default: {
+                    break;
+                }
+            }
+        }
 
-LotusEngine::LotusEngine(Instance *instance)
-    : instance_(instance),
-      factory_([this](InputContext &ic) { return new LotusState(this, &ic); }) {
-    startMonitoringOnce();
-    Init();
-    {
-        auto imNames = convertToStringList(GetInputMethodNames());
-        imNames.push_back("Custom");
-        imNames_ = std::move(imNames);
+        void clearAllBuffers() {
+            if (is_deleting_.load(std::memory_order_acquire)) {
+                return;
+            }
+            oldPreBuffer_.clear();
+            history_.clear();
+            if (!is_deleting_.load(std::memory_order_acquire)) {
+                expected_backspaces_     = 0;
+                current_backspace_count_ = 0;
+                pending_commit_string_.clear();
+            }
+            emojiBuffer_.clear();
+            emojiCandidates_.clear();
+            if (lotusEngine_)
+                ResetEngine(lotusEngine_.handle());
+        }
+
+        bool isEmptyHistory() {
+            return history_.empty();
+        }
+
+      private:
+        struct EmojiCandidateWord : public CandidateWord {
+            LotusState* state_;
+            std::string emojiOutput_;
+            EmojiCandidateWord(Text text, LotusState* state, const std::string& emojiOutput) : CandidateWord(std::move(text)), state_(state), emojiOutput_(emojiOutput) {}
+
+            void select(InputContext* inputContext) const override {
+                FCITX_UNUSED(inputContext);
+                state_->ic_->commitString(emojiOutput_);
+
+                state_->emojiBuffer_.clear();
+                state_->emojiCandidates_.clear();
+
+                state_->ic_->inputPanel().reset();
+                state_->ic_->updateUserInterface(UserInterfaceComponent::InputPanel);
+                state_->ic_->updatePreedit();
+            }
+        };
+        LotusEngine*     engine_;
+        InputContext*    ic_;
+        CGoObject        lotusEngine_;
+        std::string      oldPreBuffer_;
+        std::string      history_;
+        size_t           expected_backspaces_     = 0;
+        size_t           current_backspace_count_ = 0;
+        std::string      pending_commit_string_;
+        std::atomic<int> current_thread_id_{0};
+        // Emoji mode variables
+        std::string             emojiBuffer_;
+        std::vector<EmojiEntry> emojiCandidates_;
+    };
+
+    void mousePressResetThread() {
+        const std::string mouse_socket_path = buildSocketPath("mouse_socket");
+
+        while (!stop_flag_monitor.load(std::memory_order_relaxed)) {
+            int sock = socket(AF_UNIX, SOCK_STREAM, 0);
+            if (sock < 0) {
+                sleep(1);
+                continue;
+            }
+
+            struct sockaddr_un addr{};
+            addr.sun_family  = AF_UNIX;
+            addr.sun_path[0] = '\0';
+            memcpy(addr.sun_path + 1, mouse_socket_path.c_str(), mouse_socket_path.length());
+            socklen_t len = offsetof(struct sockaddr_un, sun_path) + mouse_socket_path.length() + 1;
+
+            // Connect to socket
+            if (connect(sock, (struct sockaddr*)&addr, len) < 0) {
+                close(sock);
+                sleep(1); // Wait for socket to be ready
+                continue;
+            }
+            mouse_socket_fd.store(sock, std::memory_order_release);
+
+            struct pollfd pfd;
+            pfd.fd     = sock;
+            pfd.events = POLLIN;
+
+            while (!stop_flag_monitor.load(std::memory_order_relaxed)) {
+                int ret = poll(&pfd, 1, -1);
+
+                if (ret > 0 && (pfd.revents & POLLIN)) {
+                    char    buf[16];
+                    ssize_t n = recv(sock, buf, sizeof(buf), 0);
+
+                    if (n <= 0) {
+                        break;
+                    }
+
+                    // Check app name
+                    struct ucred cred;
+                    socklen_t    len                = sizeof(struct ucred);
+                    char         exe_path[PATH_MAX] = {0};
+                    if (getsockopt(sock, SOL_SOCKET, SO_PEERCRED, &cred, &len) == 0) {
+                        char path[64];
+                        snprintf(path, sizeof(path), "/proc/%d/exe", cred.pid);
+                        ssize_t ret = readlink(path, exe_path, sizeof(exe_path) - 1);
+                        if (ret != -1) {
+                            exe_path[ret] = '\0';
+                        }
+                    }
+
+                    if (n > 0 && strcmp(exe_path, "/usr/bin/fcitx5-lotus-server") == 0) {
+                        needEngineReset.store(true, std::memory_order_relaxed);
+                        // Also signal that mouse was clicked to close app mode menu
+                        g_mouse_clicked.store(true, std::memory_order_relaxed);
+                    }
+                } else if (ret < 0 && errno != EINTR) {
+                    break;
+                }
+            }
+            close(sock);
+            mouse_socket_fd.store(-1, std::memory_order_release);
+        }
     }
-    config_.inputMethod.annotation().setList(imNames_);
+
+    void startMouseReset() {
+        std::thread(mousePressResetThread).detach();
+    }
+
+    LotusEngine::LotusEngine(Instance* instance) : instance_(instance), factory_([this](InputContext& ic) { return new LotusState(this, &ic); }) {
+        startMonitoringOnce();
+        Init();
+        {
+            auto imNames = convertToStringList(GetInputMethodNames());
+            imNames.push_back("Custom");
+            imNames_ = std::move(imNames);
+        }
+        config_.inputMethod.annotation().setList(imNames_);
 #if LOTUS_USE_MODERN_FCITX_API
-    auto fd = StandardPaths::global().open(StandardPathsType::PkgData,
-                                           "lotus/vietnamese.cm.dict");
+        auto fd = StandardPaths::global().open(StandardPathsType::PkgData, "lotus/vietnamese.cm.dict");
 #else
-    auto fd = StandardPath::global().open(StandardPath::Type::PkgData,
-                                          "lotus/vietnamese.cm.dict", O_RDONLY);
+        auto fd = StandardPath::global().open(StandardPath::Type::PkgData, "lotus/vietnamese.cm.dict", O_RDONLY);
 #endif
-    if (!fd.isValid())
-        throw std::runtime_error("Failed to load dictionary");
-    dictionary_.reset(NewDictionary(fd.release()));
+        if (!fd.isValid())
+            throw std::runtime_error("Failed to load dictionary");
+        dictionary_.reset(NewDictionary(fd.release()));
 
-    auto &uiManager = instance_->userInterfaceManager();
-    modeAction_ = std::make_unique<SimpleAction>();
-    modeAction_->setIcon("preferences-system");
-    modeAction_->setShortText(_("Typing Mode"));
-    uiManager.registerAction("lotus-mode", modeAction_.get());
-    modeMenu_ = std::make_unique<Menu>();
-    modeAction_->setMenu(modeMenu_.get());
+        auto& uiManager = instance_->userInterfaceManager();
+        modeAction_     = std::make_unique<SimpleAction>();
+        modeAction_->setIcon("preferences-system");
+        modeAction_->setShortText(_("Typing Mode"));
+        uiManager.registerAction("lotus-mode", modeAction_.get());
+        modeMenu_ = std::make_unique<Menu>();
+        modeAction_->setMenu(modeMenu_.get());
 
-    std::vector<LotusMode> modes = {LotusMode::Smooth, LotusMode::Uinput,
-                                    LotusMode::SurroundingText,
-                                    LotusMode::Preedit, LotusMode::UinputHC};
-    for (const auto &mode : modes) {
-        auto action = std::make_unique<SimpleAction>();
-        action->setShortText(modeEnumToString(mode));
-        action->setCheckable(true);
-        uiManager.registerAction("lotus-mode-" + modeEnumToString(mode),
-                                 action.get());
-        connections_.emplace_back(action->connect<SimpleAction::Activated>(
-            [this, mode](InputContext *ic) {
+        std::vector<LotusMode> modes = {LotusMode::Smooth, LotusMode::Uinput, LotusMode::SurroundingText, LotusMode::Preedit, LotusMode::UinputHC};
+        for (const auto& mode : modes) {
+            auto action = std::make_unique<SimpleAction>();
+            action->setShortText(modeEnumToString(mode));
+            action->setCheckable(true);
+            uiManager.registerAction("lotus-mode-" + modeEnumToString(mode), action.get());
+            connections_.emplace_back(action->connect<SimpleAction::Activated>([this, mode](InputContext* ic) {
                 if (globalMode_ == mode) {
                     return;
                 }
@@ -1419,26 +1335,24 @@ LotusEngine::LotusEngine(Instance *instance)
                 reloadConfig();
                 updateModeAction(ic);
             }));
-        modeMenu_->addAction(action.get());
-        modeSubAction_.push_back(std::move(action));
-    }
+            modeMenu_->addAction(action.get());
+            modeSubAction_.push_back(std::move(action));
+        }
 
-    inputMethodAction_ = std::make_unique<SimpleAction>();
-    inputMethodAction_->setIcon("document-edit");
-    inputMethodAction_->setShortText("Input Method");
-    uiManager.registerAction("lotus-input-method", inputMethodAction_.get());
-    inputMethodMenu_ = std::make_unique<Menu>();
-    inputMethodAction_->setMenu(inputMethodMenu_.get());
+        inputMethodAction_ = std::make_unique<SimpleAction>();
+        inputMethodAction_->setIcon("document-edit");
+        inputMethodAction_->setShortText("Input Method");
+        uiManager.registerAction("lotus-input-method", inputMethodAction_.get());
+        inputMethodMenu_ = std::make_unique<Menu>();
+        inputMethodAction_->setMenu(inputMethodMenu_.get());
 
-    for (const auto &imName : imNames_) {
-        inputMethodSubAction_.emplace_back(std::make_unique<SimpleAction>());
-        auto action = inputMethodSubAction_.back().get();
-        action->setShortText(imName);
-        action->setCheckable(true);
-        uiManager.registerAction(
-            stringutils::concat(InputMethodActionPrefix, imName), action);
-        connections_.emplace_back(action->connect<SimpleAction::Activated>(
-            [this, imName](InputContext *ic) {
+        for (const auto& imName : imNames_) {
+            inputMethodSubAction_.emplace_back(std::make_unique<SimpleAction>());
+            auto action = inputMethodSubAction_.back().get();
+            action->setShortText(imName);
+            action->setCheckable(true);
+            uiManager.registerAction(stringutils::concat(InputMethodActionPrefix, imName), action);
+            connections_.emplace_back(action->connect<SimpleAction::Activated>([this, imName](InputContext* ic) {
                 if (config_.inputMethod.value() == imName)
                     return;
                 config_.inputMethod.setValue(imName);
@@ -1448,26 +1362,24 @@ LotusEngine::LotusEngine(Instance *instance)
                 if (ic)
                     ic->updateUserInterface(UserInterfaceComponent::StatusArea);
             }));
-        inputMethodMenu_->addAction(action);
-    }
+            inputMethodMenu_->addAction(action);
+        }
 
-    charsetAction_ = std::make_unique<SimpleAction>();
-    charsetAction_->setShortText(_("Charset"));
-    charsetAction_->setIcon("character-set");
-    uiManager.registerAction("lotus-charset", charsetAction_.get());
-    charsetMenu_ = std::make_unique<Menu>();
-    charsetAction_->setMenu(charsetMenu_.get());
+        charsetAction_ = std::make_unique<SimpleAction>();
+        charsetAction_->setShortText(_("Charset"));
+        charsetAction_->setIcon("character-set");
+        uiManager.registerAction("lotus-charset", charsetAction_.get());
+        charsetMenu_ = std::make_unique<Menu>();
+        charsetAction_->setMenu(charsetMenu_.get());
 
-    auto charsets = convertToStringList(GetCharsetNames());
-    for (const auto &charset : charsets) {
-        charsetSubAction_.emplace_back(std::make_unique<SimpleAction>());
-        auto action = charsetSubAction_.back().get();
-        action->setShortText(charset);
-        action->setCheckable(true);
-        uiManager.registerAction(
-            stringutils::concat(CharsetActionPrefix, charset), action);
-        connections_.emplace_back(action->connect<SimpleAction::Activated>(
-            [this, charset](InputContext *ic) {
+        auto charsets = convertToStringList(GetCharsetNames());
+        for (const auto& charset : charsets) {
+            charsetSubAction_.emplace_back(std::make_unique<SimpleAction>());
+            auto action = charsetSubAction_.back().get();
+            action->setShortText(charset);
+            action->setCheckable(true);
+            uiManager.registerAction(stringutils::concat(CharsetActionPrefix, charset), action);
+            connections_.emplace_back(action->connect<SimpleAction::Activated>([this, charset](InputContext* ic) {
                 if (config_.outputCharset.value() == charset)
                     return;
                 config_.outputCharset.setValue(charset);
@@ -1477,758 +1389,690 @@ LotusEngine::LotusEngine(Instance *instance)
                 if (ic)
                     ic->updateUserInterface(UserInterfaceComponent::StatusArea);
             }));
-        charsetMenu_->addAction(action);
-    }
-    config_.outputCharset.annotation().setList(charsets);
+            charsetMenu_->addAction(action);
+        }
+        config_.outputCharset.annotation().setList(charsets);
 
-    spellCheckAction_ = std::make_unique<SimpleAction>();
-    spellCheckAction_->setLongText(_("Enable spell check"));
-    spellCheckAction_->setIcon("tools-check-spelling");
-    spellCheckAction_->setCheckable(true);
-    connections_.emplace_back(
-        spellCheckAction_->connect<SimpleAction::Activated>(
-            [this](InputContext *ic) {
-                config_.spellCheck.setValue(!*config_.spellCheck);
-                saveConfig();
-                refreshOption();
-                updateSpellAction(ic);
-            }));
-    uiManager.registerAction("lotus-spellcheck", spellCheckAction_.get());
+        spellCheckAction_ = std::make_unique<SimpleAction>();
+        spellCheckAction_->setLongText(_("Enable spell check"));
+        spellCheckAction_->setIcon("tools-check-spelling");
+        spellCheckAction_->setCheckable(true);
+        connections_.emplace_back(spellCheckAction_->connect<SimpleAction::Activated>([this](InputContext* ic) {
+            config_.spellCheck.setValue(!*config_.spellCheck);
+            saveConfig();
+            refreshOption();
+            updateSpellAction(ic);
+        }));
+        uiManager.registerAction("lotus-spellcheck", spellCheckAction_.get());
 
-    macroAction_ = std::make_unique<SimpleAction>();
-    macroAction_->setLongText(_("Enable Macro"));
-    macroAction_->setIcon("document-edit");
-    macroAction_->setCheckable(true);
-    connections_.emplace_back(macroAction_->connect<SimpleAction::Activated>(
-        [this](InputContext *ic) {
+        macroAction_ = std::make_unique<SimpleAction>();
+        macroAction_->setLongText(_("Enable Macro"));
+        macroAction_->setIcon("document-edit");
+        macroAction_->setCheckable(true);
+        connections_.emplace_back(macroAction_->connect<SimpleAction::Activated>([this](InputContext* ic) {
             config_.macro.setValue(!*config_.macro);
             saveConfig();
             refreshOption();
             updateMacroAction(ic);
         }));
-    uiManager.registerAction("lotus-macro", macroAction_.get());
+        uiManager.registerAction("lotus-macro", macroAction_.get());
 
-    capitalizeMacroAction_ = std::make_unique<SimpleAction>();
-    capitalizeMacroAction_->setLongText(_("Capitalize Macro"));
-    capitalizeMacroAction_->setIcon("format-text-uppercase");
-    capitalizeMacroAction_->setCheckable(true);
-    connections_.emplace_back(
-        capitalizeMacroAction_->connect<SimpleAction::Activated>(
-            [this](InputContext *ic) {
-                config_.capitalizeMacro.setValue(!*config_.capitalizeMacro);
-                saveConfig();
-                refreshOption();
-                updateCapitalizeMacroAction(ic);
-            }));
-    uiManager.registerAction("lotus-capitalizemacro",
-                             capitalizeMacroAction_.get());
+        capitalizeMacroAction_ = std::make_unique<SimpleAction>();
+        capitalizeMacroAction_->setLongText(_("Capitalize Macro"));
+        capitalizeMacroAction_->setIcon("format-text-uppercase");
+        capitalizeMacroAction_->setCheckable(true);
+        connections_.emplace_back(capitalizeMacroAction_->connect<SimpleAction::Activated>([this](InputContext* ic) {
+            config_.capitalizeMacro.setValue(!*config_.capitalizeMacro);
+            saveConfig();
+            refreshOption();
+            updateCapitalizeMacroAction(ic);
+        }));
+        uiManager.registerAction("lotus-capitalizemacro", capitalizeMacroAction_.get());
 
-    autoNonVnRestoreAction_ = std::make_unique<SimpleAction>();
-    autoNonVnRestoreAction_->setLongText(
-        _("Auto restore keys with invalid words"));
-    autoNonVnRestoreAction_->setIcon("edit-undo");
-    autoNonVnRestoreAction_->setCheckable(true);
-    connections_.emplace_back(
-        autoNonVnRestoreAction_->connect<SimpleAction::Activated>(
-            [this](InputContext *ic) {
-                config_.autoNonVnRestore.setValue(!*config_.autoNonVnRestore);
-                saveConfig();
-                refreshOption();
-                updateAutoNonVnRestoreAction(ic);
-            }));
-    uiManager.registerAction("lotus-autonvnrestore",
-                             autoNonVnRestoreAction_.get());
+        autoNonVnRestoreAction_ = std::make_unique<SimpleAction>();
+        autoNonVnRestoreAction_->setLongText(_("Auto restore keys with invalid words"));
+        autoNonVnRestoreAction_->setIcon("edit-undo");
+        autoNonVnRestoreAction_->setCheckable(true);
+        connections_.emplace_back(autoNonVnRestoreAction_->connect<SimpleAction::Activated>([this](InputContext* ic) {
+            config_.autoNonVnRestore.setValue(!*config_.autoNonVnRestore);
+            saveConfig();
+            refreshOption();
+            updateAutoNonVnRestoreAction(ic);
+        }));
+        uiManager.registerAction("lotus-autonvnrestore", autoNonVnRestoreAction_.get());
 
-    modernStyleAction_ = std::make_unique<SimpleAction>();
-    modernStyleAction_->setLongText(_("Use oà, _uý (instead of òa, úy)"));
-    modernStyleAction_->setIcon("text-x-generic");
-    modernStyleAction_->setCheckable(true);
-    connections_.emplace_back(
-        modernStyleAction_->connect<SimpleAction::Activated>(
-            [this](InputContext *ic) {
-                config_.modernStyle.setValue(!*config_.modernStyle);
-                saveConfig();
-                refreshOption();
-                updateModernStyleAction(ic);
-            }));
-    uiManager.registerAction("lotus-modernstyle", modernStyleAction_.get());
+        modernStyleAction_ = std::make_unique<SimpleAction>();
+        modernStyleAction_->setLongText(_("Use oà, _uý (instead of òa, úy)"));
+        modernStyleAction_->setIcon("text-x-generic");
+        modernStyleAction_->setCheckable(true);
+        connections_.emplace_back(modernStyleAction_->connect<SimpleAction::Activated>([this](InputContext* ic) {
+            config_.modernStyle.setValue(!*config_.modernStyle);
+            saveConfig();
+            refreshOption();
+            updateModernStyleAction(ic);
+        }));
+        uiManager.registerAction("lotus-modernstyle", modernStyleAction_.get());
 
-    freeMarkingAction_ = std::make_unique<SimpleAction>();
-    freeMarkingAction_->setLongText(_("Allow type with more freedom"));
-    freeMarkingAction_->setIcon("document-open-recent");
-    freeMarkingAction_->setCheckable(true);
-    connections_.emplace_back(
-        freeMarkingAction_->connect<SimpleAction::Activated>(
-            [this](InputContext *ic) {
-                config_.freeMarking.setValue(!*config_.freeMarking);
-                saveConfig();
-                refreshOption();
-                updateFreeMarkingAction(ic);
-            }));
-    uiManager.registerAction("lotus-freemarking", freeMarkingAction_.get());
+        freeMarkingAction_ = std::make_unique<SimpleAction>();
+        freeMarkingAction_->setLongText(_("Allow type with more freedom"));
+        freeMarkingAction_->setIcon("document-open-recent");
+        freeMarkingAction_->setCheckable(true);
+        connections_.emplace_back(freeMarkingAction_->connect<SimpleAction::Activated>([this](InputContext* ic) {
+            config_.freeMarking.setValue(!*config_.freeMarking);
+            saveConfig();
+            refreshOption();
+            updateFreeMarkingAction(ic);
+        }));
+        uiManager.registerAction("lotus-freemarking", freeMarkingAction_.get());
 
-    fixUinputWithAckAction_ = std::make_unique<SimpleAction>();
-    fixUinputWithAckAction_->setLongText(_("Fix uinput mode with ack"));
-    fixUinputWithAckAction_->setIcon("network-transmit-receive");
-    fixUinputWithAckAction_->setCheckable(true);
-    connections_.emplace_back(
-        fixUinputWithAckAction_->connect<SimpleAction::Activated>(
-            [this](InputContext *ic) {
-                config_.fixUinputWithAck.setValue(!*config_.fixUinputWithAck);
-                saveConfig();
-                refreshOption();
-                updateFixUinputWithAckAction(ic);
-            }));
-    uiManager.registerAction("lotus-fixuinputwithack",
-                             fixUinputWithAckAction_.get());
+        fixUinputWithAckAction_ = std::make_unique<SimpleAction>();
+        fixUinputWithAckAction_->setLongText(_("Fix uinput mode with ack"));
+        fixUinputWithAckAction_->setIcon("network-transmit-receive");
+        fixUinputWithAckAction_->setCheckable(true);
+        connections_.emplace_back(fixUinputWithAckAction_->connect<SimpleAction::Activated>([this](InputContext* ic) {
+            config_.fixUinputWithAck.setValue(!*config_.fixUinputWithAck);
+            saveConfig();
+            refreshOption();
+            updateFixUinputWithAckAction(ic);
+        }));
+        uiManager.registerAction("lotus-fixuinputwithack", fixUinputWithAckAction_.get());
 
-    reloadConfig();
-    globalMode_ = modeStringToEnum(config_.mode.value());
-    updateModeAction(nullptr);
-    instance_->inputContextManager().registerProperty("LotusState", &factory_);
+        reloadConfig();
+        globalMode_ = modeStringToEnum(config_.mode.value());
+        updateModeAction(nullptr);
+        instance_->inputContextManager().registerProperty("LotusState", &factory_);
 
 #if LOTUS_USE_MODERN_FCITX_API
-    std::string configDir =
-        (StandardPaths::global().userDirectory(StandardPathsType::Config) /
-         "fcitx5" / "conf")
-            .string();
+        std::string configDir = (StandardPaths::global().userDirectory(StandardPathsType::Config) / "fcitx5" / "conf").string();
 #else
-    std::string configDir =
-        StandardPath::global().userDirectory(StandardPath::Type::Config) +
-        "/fcitx5/conf";
+        std::string configDir = StandardPath::global().userDirectory(StandardPath::Type::Config) + "/fcitx5/conf";
 #endif
 
-    if (!std::filesystem::exists(configDir)) {
-        std::filesystem::create_directories(configDir);
+        if (!std::filesystem::exists(configDir)) {
+            std::filesystem::create_directories(configDir);
+        }
+        appRulesPath_ = configDir + "/lotus-app-rules.conf";
+        loadAppRules();
     }
-    appRulesPath_ = configDir + "/lotus-app-rules.conf";
-    loadAppRules();
-}
 
-LotusEngine::~LotusEngine() {
-    stop_flag_monitor.store(true, std::memory_order_release);
-    monitor_cv.notify_all();
-    int fd = mouse_socket_fd.load(std::memory_order_acquire);
-    if (fd >= 0) {
-        close(fd);
+    LotusEngine::~LotusEngine() {
+        stop_flag_monitor.store(true, std::memory_order_release);
+        monitor_cv.notify_all();
+        int fd = mouse_socket_fd.load(std::memory_order_acquire);
+        if (fd >= 0) {
+            close(fd);
+        }
     }
-}
 
-void LotusEngine::reloadConfig() {
-    readAsIni(config_, "conf/lotus.conf");
-    readAsIni(customKeymap_, CustomKeymapFile);
-    for (const auto &imName : imNames_) {
-        auto &table = macroTables_[imName];
-        readAsIni(table, macroFile(imName));
-        macroTableObject_[imName].reset(newMacroTable(table));
+    void LotusEngine::reloadConfig() {
+        readAsIni(config_, "conf/lotus.conf");
+        readAsIni(customKeymap_, CustomKeymapFile);
+        for (const auto& imName : imNames_) {
+            auto& table = macroTables_[imName];
+            readAsIni(table, macroFile(imName));
+            macroTableObject_[imName].reset(newMacroTable(table));
+        }
+        populateConfig();
     }
-    populateConfig();
-}
 
-const Configuration *LotusEngine::getSubConfig(const std::string &path) const {
-    if (path == "custom_keymap")
-        return &customKeymap_;
-    if (stringutils::startsWith(path, MacroPrefix)) {
-        const auto imName = path.substr(MacroPrefix.size());
-        if (auto iter = macroTables_.find(imName); iter != macroTables_.end())
-            return &iter->second;
+    const Configuration* LotusEngine::getSubConfig(const std::string& path) const {
+        if (path == "custom_keymap")
+            return &customKeymap_;
+        if (stringutils::startsWith(path, MacroPrefix)) {
+            const auto imName = path.substr(MacroPrefix.size());
+            if (auto iter = macroTables_.find(imName); iter != macroTables_.end())
+                return &iter->second;
+        }
+        return nullptr;
     }
-    return nullptr;
-}
 
-void LotusEngine::setConfig(const RawConfig &config) {
-    config_.load(config, true);
-    saveConfig();
-    populateConfig();
-}
+    void LotusEngine::setConfig(const RawConfig& config) {
+        config_.load(config, true);
+        saveConfig();
+        populateConfig();
+    }
 
-void LotusEngine::populateConfig() {
-    refreshEngine();
-    refreshOption();
-    updateModeAction(nullptr);
-    updateInputMethodAction(nullptr);
-    updateCharsetAction(nullptr);
-    updateSpellAction(nullptr);
-    updateMacroAction(nullptr);
-    updateCapitalizeMacroAction(nullptr);
-    updateAutoNonVnRestoreAction(nullptr);
-    updateModernStyleAction(nullptr);
-    updateFreeMarkingAction(nullptr);
-    updateFixUinputWithAckAction(nullptr);
-}
-
-void LotusEngine::setSubConfig(const std::string &path,
-                               const RawConfig &config) {
-    if (path == "custom_keymap") {
-        customKeymap_.load(config, true);
-        safeSaveAsIni(customKeymap_, CustomKeymapFile);
+    void LotusEngine::populateConfig() {
         refreshEngine();
-    } else if (stringutils::startsWith(path, MacroPrefix)) {
-        const auto imName = path.substr(MacroPrefix.size());
-        if (auto iter = macroTables_.find(imName); iter != macroTables_.end()) {
-            iter->second.load(config, true);
-            safeSaveAsIni(iter->second, macroFile(imName));
-            macroTableObject_[imName].reset(newMacroTable(iter->second));
+        refreshOption();
+        updateModeAction(nullptr);
+        updateInputMethodAction(nullptr);
+        updateCharsetAction(nullptr);
+        updateSpellAction(nullptr);
+        updateMacroAction(nullptr);
+        updateCapitalizeMacroAction(nullptr);
+        updateAutoNonVnRestoreAction(nullptr);
+        updateModernStyleAction(nullptr);
+        updateFreeMarkingAction(nullptr);
+        updateFixUinputWithAckAction(nullptr);
+    }
+
+    void LotusEngine::setSubConfig(const std::string& path, const RawConfig& config) {
+        if (path == "custom_keymap") {
+            customKeymap_.load(config, true);
+            safeSaveAsIni(customKeymap_, CustomKeymapFile);
             refreshEngine();
-        }
-    }
-}
-
-std::string LotusEngine::subMode(const InputMethodEntry &, InputContext &) {
-    return *config_.inputMethod;
-}
-
-void LotusEngine::activate(const InputMethodEntry &entry,
-                           InputContextEvent &event) {
-    FCITX_UNUSED(entry);
-    auto ic = event.inputContext();
-    static std::atomic<bool> mouseThreadStarted{false};
-    if (!mouseThreadStarted.exchange(true))
-        startMouseReset();
-
-    auto &statusArea = event.inputContext()->statusArea();
-    if (ic->capabilityFlags().test(CapabilityFlag::Preedit))
-        instance_->inputContextManager().setPreeditEnabledByDefault(true);
-
-    // ibus-bamboo mode save/load
-    std::string appName = ic->program();
-    LotusMode targetMode;
-
-    if (!appRules_.empty() && appRules_.count(appName)) {
-        targetMode = appRules_[appName];
-    } else {
-        targetMode = globalMode_;
-    }
-    reloadConfig();
-    updateModeAction(event.inputContext());
-    updateInputMethodAction(event.inputContext());
-    updateCharsetAction(event.inputContext());
-
-    if (*config_.fixUinputWithAck) {
-        if (targetMode == LotusMode::Uinput ||
-            targetMode == LotusMode::UinputHC ||
-            targetMode == LotusMode::Smooth) {
-            bool needWaitAck = false;
-            for (const auto &ackApp : ack_apps) {
-                if (appName.find(ackApp) != std::string::npos) {
-                    needWaitAck = true;
-                    break;
-                }
+        } else if (stringutils::startsWith(path, MacroPrefix)) {
+            const auto imName = path.substr(MacroPrefix.size());
+            if (auto iter = macroTables_.find(imName); iter != macroTables_.end()) {
+                iter->second.load(config, true);
+                safeSaveAsIni(iter->second, macroFile(imName));
+                macroTableObject_[imName].reset(newMacroTable(iter->second));
+                refreshEngine();
             }
-            waitAck = needWaitAck;
         }
     }
 
-    setMode(targetMode, event.inputContext());
+    std::string LotusEngine::subMode(const InputMethodEntry&, InputContext&) {
+        return *config_.inputMethod;
+    }
 
-    auto state = ic->propertyFor(&factory_);
+    void LotusEngine::activate(const InputMethodEntry& entry, InputContextEvent& event) {
+        FCITX_UNUSED(entry);
+        auto                     ic = event.inputContext();
+        static std::atomic<bool> mouseThreadStarted{false};
+        if (!mouseThreadStarted.exchange(true))
+            startMouseReset();
 
-    state->clearAllBuffers();
-    is_deleting_.store(false);
-    needEngineReset.store(false);
-    ic->inputPanel().reset();
-    ic->updateUserInterface(UserInterfaceComponent::InputPanel);
-    ic->updatePreedit();
+        auto& statusArea = event.inputContext()->statusArea();
+        if (ic->capabilityFlags().test(CapabilityFlag::Preedit))
+            instance_->inputContextManager().setPreeditEnabledByDefault(true);
 
-    statusArea.addAction(StatusGroup::InputMethod, modeAction_.get());
-    statusArea.addAction(StatusGroup::InputMethod, inputMethodAction_.get());
-    statusArea.addAction(StatusGroup::InputMethod, charsetAction_.get());
-    statusArea.addAction(StatusGroup::InputMethod, spellCheckAction_.get());
-    statusArea.addAction(StatusGroup::InputMethod, macroAction_.get());
-    statusArea.addAction(StatusGroup::InputMethod,
-                         capitalizeMacroAction_.get());
-    statusArea.addAction(StatusGroup::InputMethod,
-                         autoNonVnRestoreAction_.get());
-    statusArea.addAction(StatusGroup::InputMethod, modernStyleAction_.get());
-    statusArea.addAction(StatusGroup::InputMethod, freeMarkingAction_.get());
-    statusArea.addAction(StatusGroup::InputMethod,
-                         fixUinputWithAckAction_.get());
-}
+        // ibus-bamboo mode save/load
+        std::string appName = ic->program();
+        LotusMode   targetMode;
 
-void LotusEngine::keyEvent(const InputMethodEntry &entry, KeyEvent &keyEvent) {
-    FCITX_UNUSED(entry);
-    auto ic = keyEvent.inputContext();
+        if (!appRules_.empty() && appRules_.count(appName)) {
+            targetMode = appRules_[appName];
+        } else {
+            targetMode = globalMode_;
+        }
+        reloadConfig();
+        updateModeAction(event.inputContext());
+        updateInputMethodAction(event.inputContext());
+        updateCharsetAction(event.inputContext());
 
-    // Handle mouse click event from fcitx5-lotus-server to close app mode menu
-    // The server sends signal via Unix socket when user clicks outside the menu
-    if (isSelectingAppMode_ &&
-        g_mouse_clicked.load(std::memory_order_relaxed)) {
-        closeAppModeMenu();
-        ic->inputPanel().reset();
-        ic->updateUserInterface(UserInterfaceComponent::InputPanel);
+        if (*config_.fixUinputWithAck) {
+            if (targetMode == LotusMode::Uinput || targetMode == LotusMode::UinputHC || targetMode == LotusMode::Smooth) {
+                bool needWaitAck = false;
+                for (const auto& ackApp : ack_apps) {
+                    if (appName.find(ackApp) != std::string::npos) {
+                        needWaitAck = true;
+                        break;
+                    }
+                }
+                waitAck = needWaitAck;
+            }
+        }
+
+        setMode(targetMode, event.inputContext());
+
         auto state = ic->propertyFor(&factory_);
-        state->reset();
-    }
 
-    // Handle keyboard input when app mode selection menu is active
-    if (isSelectingAppMode_) {
-        if (keyEvent.isRelease())
-            return;
-
-        auto baseList = ic->inputPanel().candidateList();
-        auto menuList =
-            std::dynamic_pointer_cast<CommonCandidateList>(baseList);
-        KeySym keySym = keyEvent.key().sym();
-
-        // Lambda to move cursor in candidate list with wrap-around
-        // Note: Index 0 is reserved for header ("App: ..."), so valid range is
-        // [1, totalSize-1]
-        auto moveCursor = [&](int delta) {
-            if (!menuList || menuList->empty()) {
-                return false;
-            }
-
-            int totalSize = menuList->totalSize();
-            if (totalSize <= 1) {
-                return false;
-            }
-
-            int cursorIndex = menuList->globalCursorIndex();
-            if (cursorIndex < 1 || cursorIndex >= totalSize) {
-                cursorIndex = 1;
-            }
-
-            int nextIndex = cursorIndex + delta;
-            // Wrap around: bottom → top or top → bottom
-            if (nextIndex < 1) {
-                nextIndex = totalSize - 1;
-            } else if (nextIndex >= totalSize) {
-                nextIndex = 1;
-            }
-
-            menuList->setGlobalCursorIndex(nextIndex);
-            ic->updateUserInterface(UserInterfaceComponent::InputPanel);
-            return true;
-        };
-
-        keyEvent.filterAndAccept();
-
-        LotusMode selectedMode = LotusMode::NoMode;
-        bool selectionMade = false;
-
-        switch (keySym) {
-        case FcitxKey_Tab:
-        case FcitxKey_Down: {
-            if (moveCursor(1)) {
-                return;
-            }
-            break;
-        }
-        case FcitxKey_ISO_Left_Tab:
-        case FcitxKey_Up: {
-            if (moveCursor(-1)) {
-                return;
-            }
-            break;
-        }
-        case FcitxKey_space:
-        case FcitxKey_Return: {
-            if (menuList && !menuList->empty()) {
-                int selectedIndex = menuList->globalCursorIndex();
-                if (selectedIndex < 1 ||
-                    selectedIndex >= menuList->totalSize()) {
-                    selectedIndex = 1;
-                }
-                menuList->candidateFromAll(selectedIndex).select(ic);
-                return;
-            }
-            break;
-        }
-            // Map keyboard shortcuts to modes
-            // Numbers [1-4]: Lotus input modes, Letters [q/w/e/r]: Special
-            // modes/actions
-        case FcitxKey_1: {
-            selectedMode = LotusMode::Smooth;
-            break;
-        }
-        case FcitxKey_2: {
-            selectedMode = LotusMode::Uinput;
-            break;
-        }
-        case FcitxKey_3: {
-            selectedMode = LotusMode::UinputHC;
-            break;
-        }
-        case FcitxKey_4: {
-            selectedMode = LotusMode::SurroundingText;
-            break;
-        }
-        case FcitxKey_q: {
-            selectedMode = LotusMode::Preedit;
-            break;
-        }
-        case FcitxKey_w: {
-            selectedMode = LotusMode::Emoji;
-            break;
-        }
-        case FcitxKey_e: {
-            selectedMode = LotusMode::Off;
-            break;
-        }
-        case FcitxKey_r: {
-            if (appRules_.count(currentConfigureApp_)) {
-                appRules_.erase(currentConfigureApp_);
-                saveAppRules();
-            }
-            selectionMade = true;
-            break;
-        }
-        case FcitxKey_Escape: {
-            selectionMade = true;
-            break;
-        }
-        case FcitxKey_grave: {
-            isSelectingAppMode_ = false;
-            ic->inputPanel().reset();
-            ic->updateUserInterface(UserInterfaceComponent::InputPanel);
-            auto state = ic->propertyFor(&factory_);
-            state->reset();
-            ic->commitString("`");
-            return;
-        }
-        default:
-            break;
-        }
-
-        if (selectedMode != LotusMode::NoMode) {
-            if (selectedMode != LotusMode::Emoji) {
-                appRules_[currentConfigureApp_] = selectedMode;
-                saveAppRules();
-            }
-
-            setMode(selectedMode, ic);
-            selectionMade = true;
-        }
-
-        if (selectionMade) {
-            isSelectingAppMode_ = false;
-            ic->inputPanel().reset();
-            ic->updateUserInterface(UserInterfaceComponent::InputPanel);
-            auto state = ic->propertyFor(&factory_);
-            state->reset();
-        }
-        return;
-    }
-
-    // Open app mode selection menu when user presses backtick/grave key (`)
-    // Triggered by Shift+` key combination, allows user to change input mode
-    // per-app
-    if (!keyEvent.isRelease() && keyEvent.rawKey().check(FcitxKey_grave)) {
-        currentConfigureApp_ = ic->program();
-        if (currentConfigureApp_.empty())
-            currentConfigureApp_ = "unknown-app";
-        g_mouse_clicked.store(false, std::memory_order_relaxed);
-        showAppModeMenu(ic);
-        keyEvent.filterAndAccept();
-        return;
-    }
-    auto state = keyEvent.inputContext()->propertyFor(&factory_);
-    state->keyEvent(keyEvent);
-    const auto &s = ic->surroundingText();
-    const auto &text = s.text();
-    size_t textLen = fcitx_utf8_strlen(text.c_str());
-    int cursor = s.cursor();
-    if (textLen == static_cast<size_t>(cursor))
-        realtextLen = static_cast<int>(textLen);
-}
-
-void LotusEngine::reset(const InputMethodEntry &entry,
-                        InputContextEvent &event) {
-    FCITX_UNUSED(entry);
-    auto state = event.inputContext()->propertyFor(&factory_);
-    if (!state->isEmptyHistory() &&
-        event.type() != EventType::InputContextFocusOut) {
-        return;
-    }
-
-    if (event.type() == EventType::InputContextFocusOut) {
-        state->reset();
-    }
-}
-
-void LotusEngine::deactivate(const InputMethodEntry &entry,
-                             InputContextEvent &event) {
-    FCITX_UNUSED(entry);
-    auto state = event.inputContext()->propertyFor(&factory_);
-    if (realMode == LotusMode::Preedit) {
-        if (event.type() != EventType::InputContextFocusOut)
-            state->commitBuffer();
-        else
-            state->reset();
-    } else {
         state->clearAllBuffers();
         is_deleting_.store(false);
         needEngineReset.store(false);
-        event.inputContext()->inputPanel().reset();
-        event.inputContext()->updateUserInterface(
-            UserInterfaceComponent::InputPanel);
-        event.inputContext()->updatePreedit();
-    }
-}
-
-void LotusEngine::refreshEngine() {
-    if (!factory_.registered())
-        return;
-    instance_->inputContextManager().foreach ([this](InputContext *ic) {
-        auto state = ic->propertyFor(&factory_);
-        state->setEngine();
-        if (ic->hasFocus())
-            state->reset();
-        return true;
-    });
-}
-
-void LotusEngine::refreshOption() {
-    if (!factory_.registered())
-        return;
-    instance_->inputContextManager().foreach ([this](InputContext *ic) {
-        auto state = ic->propertyFor(&factory_);
-        state->setOption();
-        if (ic->hasFocus())
-            state->reset();
-        return true;
-    });
-}
-
-void LotusEngine::updateModeAction(InputContext *ic) {
-    std::string currentModeStr = config_.mode.value();
-    LotusMode newMode = modeStringToEnum(currentModeStr);
-    globalMode_ = newMode;
-    setMode(newMode, ic);
-
-    for (const auto &action : modeSubAction_) {
-        action->setChecked(action->name() == "lotus-mode-" + currentModeStr);
-        if (ic)
-            action->update(ic);
-    }
-    modeAction_->setLongText(_("Typing Mode: ") + currentModeStr);
-
-    if (ic) {
-        modeAction_->update(ic);
-    }
-}
-
-void LotusEngine::updateInputMethodAction(InputContext *ic) {
-    auto name =
-        stringutils::concat(InputMethodActionPrefix, *config_.inputMethod);
-    for (const auto &action : inputMethodSubAction_) {
-        action->setChecked(action->name() == name);
-        if (ic)
-            action->update(ic);
-    }
-    if (ic) {
-        inputMethodAction_->setLongText(
-            stringutils::concat("Input Method: ", *config_.inputMethod));
-        inputMethodAction_->update(ic);
-    }
-}
-
-void LotusEngine::updateCharsetAction(InputContext *ic) {
-    auto name =
-        stringutils::concat(CharsetActionPrefix, *config_.outputCharset);
-    for (const auto &action : charsetSubAction_) {
-        action->setChecked(action->name() == name);
-        if (ic)
-            action->update(ic);
-    }
-}
-
-void LotusEngine::updateSpellAction(InputContext *ic) {
-    spellCheckAction_->setChecked(*config_.spellCheck);
-    spellCheckAction_->setShortText(
-        *config_.spellCheck ? _("Spell Check: On") : _("Spell Check: Off"));
-    if (ic) {
-        spellCheckAction_->update(ic);
-    }
-}
-
-void LotusEngine::updateMacroAction(InputContext *ic) {
-    macroAction_->setChecked(*config_.macro);
-    macroAction_->setShortText(*config_.macro ? _("Macro: On")
-                                              : _("Macro: Off"));
-    if (ic) {
-        macroAction_->update(ic);
-    }
-}
-
-void LotusEngine::updateCapitalizeMacroAction(InputContext *ic) {
-    capitalizeMacroAction_->setChecked(*config_.capitalizeMacro);
-    capitalizeMacroAction_->setShortText(*config_.capitalizeMacro
-                                             ? _("Capitalize Macro: On")
-                                             : _("Capitalize Macro: Off"));
-    if (ic) {
-        capitalizeMacroAction_->update(ic);
-    }
-}
-
-void LotusEngine::updateAutoNonVnRestoreAction(InputContext *ic) {
-    autoNonVnRestoreAction_->setChecked(*config_.autoNonVnRestore);
-    autoNonVnRestoreAction_->setShortText(*config_.autoNonVnRestore
-                                              ? _("Auto Non-VN Restore: On")
-                                              : _("Auto Non-VN Restore: Off"));
-    if (ic) {
-        autoNonVnRestoreAction_->update(ic);
-    }
-}
-
-void LotusEngine::updateModernStyleAction(InputContext *ic) {
-    modernStyleAction_->setChecked(*config_.modernStyle);
-    modernStyleAction_->setShortText(
-        *config_.modernStyle ? _("Modern Style: On") : _("Modern Style: Off"));
-    if (ic) {
-        modernStyleAction_->update(ic);
-    }
-}
-
-void LotusEngine::updateFreeMarkingAction(InputContext *ic) {
-    freeMarkingAction_->setChecked(*config_.freeMarking);
-    freeMarkingAction_->setShortText(
-        *config_.freeMarking ? _("Free Marking: On") : _("Free Marking: Off"));
-    if (ic) {
-        freeMarkingAction_->update(ic);
-    }
-}
-
-void LotusEngine::updateFixUinputWithAckAction(InputContext *ic) {
-    fixUinputWithAckAction_->setChecked(*config_.fixUinputWithAck);
-    fixUinputWithAckAction_->setShortText(*config_.fixUinputWithAck
-                                              ? _("Fix Uinput With Ack: On")
-                                              : _("Fix Uinput With Ack: Off"));
-    if (ic) {
-        fixUinputWithAckAction_->update(ic);
-    }
-}
-
-void LotusEngine::loadAppRules() {
-    appRules_.clear();
-    std::ifstream file(appRulesPath_);
-    if (!file.is_open())
-        return;
-
-    std::string line;
-    while (std::getline(file, line)) {
-        if (line.empty() || line[0] == '#')
-            continue;
-        auto delimiterPos = line.find('=');
-        if (delimiterPos != std::string::npos) {
-            std::string app = line.substr(0, delimiterPos);
-            std::string modeStr = line.substr(delimiterPos + 1);
-            appRules_[app] = modeStringToEnum(modeStr);
-        }
-    }
-    file.close();
-}
-
-void LotusEngine::saveAppRules() {
-    std::ofstream file(appRulesPath_, std::ios::trunc);
-    if (!file.is_open())
-        return;
-
-    file << "# Lotus Per-App Configuration\n";
-    for (const auto &pair : appRules_) {
-        std::string modeStr = modeEnumToString(pair.second);
-        file << pair.first << "=" << modeStr << "\n";
-    }
-    file.close();
-}
-
-void LotusEngine::closeAppModeMenu() {
-    isSelectingAppMode_ = false;
-    g_mouse_clicked.store(false, std::memory_order_relaxed);
-}
-
-namespace {
-// Custom candidate word class that supports both mouse click and keyboard
-// selection Unlike DisplayOnlyCandidateWord, this executes a callback when
-// selected, enabling interactive menu items in the app mode selection UI
-class AppModeCandidateWord : public CandidateWord {
-  public:
-    AppModeCandidateWord(Text text,
-                         std::function<void(InputContext *)> callback)
-        : CandidateWord(std::move(text)), callback_(std::move(callback)) {}
-
-    void select(InputContext *ic) const override {
-        if (callback_) {
-            callback_(ic);
-        }
-    }
-
-  private:
-    std::function<void(InputContext *)> callback_;
-};
-} // namespace
-
-void LotusEngine::showAppModeMenu(InputContext *ic) {
-    isSelectingAppMode_ = true;
-
-    auto candidateList = std::make_unique<CommonCandidateList>();
-
-    candidateList->setLayoutHint(CandidateLayoutHint::Vertical);
-    candidateList->setPageSize(10);
-
-    // Helper lambda: Add ">>" marker to highlight current active mode
-    auto getLabel = [&](const LotusMode &modeName,
-                        const std::string &modeLabel) {
-        if (modeName == realMode) {
-            return Text(">> " + modeLabel);
-        } else {
-            return Text("   " + modeLabel);
-        }
-    };
-
-    // Helper lambda: Cleanup after mode selection (reset UI and commit pending
-    // text)
-    auto cleanup = [this](InputContext *ic) {
-        isSelectingAppMode_ = false;
         ic->inputPanel().reset();
         ic->updateUserInterface(UserInterfaceComponent::InputPanel);
-        auto state = ic->propertyFor(&factory_);
-        state->reset(); // This will commit any pending preedit text
-    };
+        ic->updatePreedit();
 
-    // Helper lambda: Create callback to apply selected mode and save
-    // app-specific settings Note: Emoji mode is transient (not saved to
-    // appRules), user must explicitly select it each time they open the menu
-    auto applyMode = [this, cleanup](LotusMode mode) {
-        return [this, mode, cleanup](InputContext *ic) {
-            if (mode != LotusMode::Emoji) {
-                appRules_[currentConfigureApp_] = mode;
-                saveAppRules();
+        statusArea.addAction(StatusGroup::InputMethod, modeAction_.get());
+        statusArea.addAction(StatusGroup::InputMethod, inputMethodAction_.get());
+        statusArea.addAction(StatusGroup::InputMethod, charsetAction_.get());
+        statusArea.addAction(StatusGroup::InputMethod, spellCheckAction_.get());
+        statusArea.addAction(StatusGroup::InputMethod, macroAction_.get());
+        statusArea.addAction(StatusGroup::InputMethod, capitalizeMacroAction_.get());
+        statusArea.addAction(StatusGroup::InputMethod, autoNonVnRestoreAction_.get());
+        statusArea.addAction(StatusGroup::InputMethod, modernStyleAction_.get());
+        statusArea.addAction(StatusGroup::InputMethod, freeMarkingAction_.get());
+        statusArea.addAction(StatusGroup::InputMethod, fixUinputWithAckAction_.get());
+    }
+
+    void LotusEngine::keyEvent(const InputMethodEntry& entry, KeyEvent& keyEvent) {
+        FCITX_UNUSED(entry);
+        auto ic = keyEvent.inputContext();
+
+        // Handle mouse click event from fcitx5-lotus-server to close app mode menu
+        // The server sends signal via Unix socket when user clicks outside the menu
+        if (isSelectingAppMode_ && g_mouse_clicked.load(std::memory_order_relaxed)) {
+            closeAppModeMenu();
+            ic->inputPanel().reset();
+            ic->updateUserInterface(UserInterfaceComponent::InputPanel);
+            auto state = ic->propertyFor(&factory_);
+            state->reset();
+        }
+
+        // Handle keyboard input when app mode selection menu is active
+        if (isSelectingAppMode_) {
+            if (keyEvent.isRelease())
+                return;
+
+            auto   baseList = ic->inputPanel().candidateList();
+            auto   menuList = std::dynamic_pointer_cast<CommonCandidateList>(baseList);
+            KeySym keySym   = keyEvent.key().sym();
+
+            // Lambda to move cursor in candidate list with wrap-around
+            // Note: Index 0 is reserved for header ("App: ..."), so valid range is
+            // [1, totalSize-1]
+            auto moveCursor = [&](int delta) {
+                if (!menuList || menuList->empty()) {
+                    return false;
+                }
+
+                int totalSize = menuList->totalSize();
+                if (totalSize <= 1) {
+                    return false;
+                }
+
+                int cursorIndex = menuList->globalCursorIndex();
+                if (cursorIndex < 1 || cursorIndex >= totalSize) {
+                    cursorIndex = 1;
+                }
+
+                int nextIndex = cursorIndex + delta;
+                // Wrap around: bottom → top or top → bottom
+                if (nextIndex < 1) {
+                    nextIndex = totalSize - 1;
+                } else if (nextIndex >= totalSize) {
+                    nextIndex = 1;
+                }
+
+                menuList->setGlobalCursorIndex(nextIndex);
+                ic->updateUserInterface(UserInterfaceComponent::InputPanel);
+                return true;
+            };
+
+            keyEvent.filterAndAccept();
+
+            LotusMode selectedMode  = LotusMode::NoMode;
+            bool      selectionMade = false;
+
+            switch (keySym) {
+                case FcitxKey_Tab:
+                case FcitxKey_Down: {
+                    if (moveCursor(1)) {
+                        return;
+                    }
+                    break;
+                }
+                case FcitxKey_ISO_Left_Tab:
+                case FcitxKey_Up: {
+                    if (moveCursor(-1)) {
+                        return;
+                    }
+                    break;
+                }
+                case FcitxKey_space:
+                case FcitxKey_Return: {
+                    if (menuList && !menuList->empty()) {
+                        int selectedIndex = menuList->globalCursorIndex();
+                        if (selectedIndex < 1 || selectedIndex >= menuList->totalSize()) {
+                            selectedIndex = 1;
+                        }
+                        menuList->candidateFromAll(selectedIndex).select(ic);
+                        return;
+                    }
+                    break;
+                }
+                    // Map keyboard shortcuts to modes
+                    // Numbers [1-4]: Lotus input modes, Letters [q/w/e/r]: Special
+                    // modes/actions
+                case FcitxKey_1: {
+                    selectedMode = LotusMode::Smooth;
+                    break;
+                }
+                case FcitxKey_2: {
+                    selectedMode = LotusMode::Uinput;
+                    break;
+                }
+                case FcitxKey_3: {
+                    selectedMode = LotusMode::UinputHC;
+                    break;
+                }
+                case FcitxKey_4: {
+                    selectedMode = LotusMode::SurroundingText;
+                    break;
+                }
+                case FcitxKey_q: {
+                    selectedMode = LotusMode::Preedit;
+                    break;
+                }
+                case FcitxKey_w: {
+                    selectedMode = LotusMode::Emoji;
+                    break;
+                }
+                case FcitxKey_e: {
+                    selectedMode = LotusMode::Off;
+                    break;
+                }
+                case FcitxKey_r: {
+                    if (appRules_.count(currentConfigureApp_)) {
+                        appRules_.erase(currentConfigureApp_);
+                        saveAppRules();
+                    }
+                    selectionMade = true;
+                    break;
+                }
+                case FcitxKey_Escape: {
+                    selectionMade = true;
+                    break;
+                }
+                case FcitxKey_grave: {
+                    isSelectingAppMode_ = false;
+                    ic->inputPanel().reset();
+                    ic->updateUserInterface(UserInterfaceComponent::InputPanel);
+                    auto state = ic->propertyFor(&factory_);
+                    state->reset();
+                    ic->commitString("`");
+                    return;
+                }
+                default: break;
             }
 
-            setMode(mode, ic);
-            cleanup(ic);
+            if (selectedMode != LotusMode::NoMode) {
+                if (selectedMode != LotusMode::Emoji) {
+                    appRules_[currentConfigureApp_] = selectedMode;
+                    saveAppRules();
+                }
+
+                setMode(selectedMode, ic);
+                selectionMade = true;
+            }
+
+            if (selectionMade) {
+                isSelectingAppMode_ = false;
+                ic->inputPanel().reset();
+                ic->updateUserInterface(UserInterfaceComponent::InputPanel);
+                auto state = ic->propertyFor(&factory_);
+                state->reset();
+            }
+            return;
+        }
+
+        // Open app mode selection menu when user presses backtick/grave key (`)
+        // Triggered by Shift+` key combination, allows user to change input mode
+        // per-app
+        if (!keyEvent.isRelease() && keyEvent.rawKey().check(FcitxKey_grave)) {
+            currentConfigureApp_ = ic->program();
+            if (currentConfigureApp_.empty())
+                currentConfigureApp_ = "unknown-app";
+            g_mouse_clicked.store(false, std::memory_order_relaxed);
+            showAppModeMenu(ic);
+            keyEvent.filterAndAccept();
+            return;
+        }
+        auto state = keyEvent.inputContext()->propertyFor(&factory_);
+        state->keyEvent(keyEvent);
+        const auto& s       = ic->surroundingText();
+        const auto& text    = s.text();
+        size_t      textLen = fcitx_utf8_strlen(text.c_str());
+        int         cursor  = s.cursor();
+        if (textLen == static_cast<size_t>(cursor))
+            realtextLen = static_cast<int>(textLen);
+    }
+
+    void LotusEngine::reset(const InputMethodEntry& entry, InputContextEvent& event) {
+        FCITX_UNUSED(entry);
+        auto state = event.inputContext()->propertyFor(&factory_);
+        if (!state->isEmptyHistory() && event.type() != EventType::InputContextFocusOut) {
+            return;
+        }
+
+        if (event.type() == EventType::InputContextFocusOut) {
+            state->reset();
+        }
+    }
+
+    void LotusEngine::deactivate(const InputMethodEntry& entry, InputContextEvent& event) {
+        FCITX_UNUSED(entry);
+        auto state = event.inputContext()->propertyFor(&factory_);
+        if (realMode == LotusMode::Preedit) {
+            if (event.type() != EventType::InputContextFocusOut)
+                state->commitBuffer();
+            else
+                state->reset();
+        } else {
+            state->clearAllBuffers();
+            is_deleting_.store(false);
+            needEngineReset.store(false);
+            event.inputContext()->inputPanel().reset();
+            event.inputContext()->updateUserInterface(UserInterfaceComponent::InputPanel);
+            event.inputContext()->updatePreedit();
+        }
+    }
+
+    void LotusEngine::refreshEngine() {
+        if (!factory_.registered())
+            return;
+        instance_->inputContextManager().foreach ([this](InputContext* ic) {
+            auto state = ic->propertyFor(&factory_);
+            state->setEngine();
+            if (ic->hasFocus())
+                state->reset();
+            return true;
+        });
+    }
+
+    void LotusEngine::refreshOption() {
+        if (!factory_.registered())
+            return;
+        instance_->inputContextManager().foreach ([this](InputContext* ic) {
+            auto state = ic->propertyFor(&factory_);
+            state->setOption();
+            if (ic->hasFocus())
+                state->reset();
+            return true;
+        });
+    }
+
+    void LotusEngine::updateModeAction(InputContext* ic) {
+        std::string currentModeStr = config_.mode.value();
+        LotusMode   newMode        = modeStringToEnum(currentModeStr);
+        globalMode_                = newMode;
+        setMode(newMode, ic);
+
+        for (const auto& action : modeSubAction_) {
+            action->setChecked(action->name() == "lotus-mode-" + currentModeStr);
+            if (ic)
+                action->update(ic);
+        }
+        modeAction_->setLongText(_("Typing Mode: ") + currentModeStr);
+
+        if (ic) {
+            modeAction_->update(ic);
+        }
+    }
+
+    void LotusEngine::updateInputMethodAction(InputContext* ic) {
+        auto name = stringutils::concat(InputMethodActionPrefix, *config_.inputMethod);
+        for (const auto& action : inputMethodSubAction_) {
+            action->setChecked(action->name() == name);
+            if (ic)
+                action->update(ic);
+        }
+        if (ic) {
+            inputMethodAction_->setLongText(stringutils::concat("Input Method: ", *config_.inputMethod));
+            inputMethodAction_->update(ic);
+        }
+    }
+
+    void LotusEngine::updateCharsetAction(InputContext* ic) {
+        auto name = stringutils::concat(CharsetActionPrefix, *config_.outputCharset);
+        for (const auto& action : charsetSubAction_) {
+            action->setChecked(action->name() == name);
+            if (ic)
+                action->update(ic);
+        }
+    }
+
+    void LotusEngine::updateSpellAction(InputContext* ic) {
+        spellCheckAction_->setChecked(*config_.spellCheck);
+        spellCheckAction_->setShortText(*config_.spellCheck ? _("Spell Check: On") : _("Spell Check: Off"));
+        if (ic) {
+            spellCheckAction_->update(ic);
+        }
+    }
+
+    void LotusEngine::updateMacroAction(InputContext* ic) {
+        macroAction_->setChecked(*config_.macro);
+        macroAction_->setShortText(*config_.macro ? _("Macro: On") : _("Macro: Off"));
+        if (ic) {
+            macroAction_->update(ic);
+        }
+    }
+
+    void LotusEngine::updateCapitalizeMacroAction(InputContext* ic) {
+        capitalizeMacroAction_->setChecked(*config_.capitalizeMacro);
+        capitalizeMacroAction_->setShortText(*config_.capitalizeMacro ? _("Capitalize Macro: On") : _("Capitalize Macro: Off"));
+        if (ic) {
+            capitalizeMacroAction_->update(ic);
+        }
+    }
+
+    void LotusEngine::updateAutoNonVnRestoreAction(InputContext* ic) {
+        autoNonVnRestoreAction_->setChecked(*config_.autoNonVnRestore);
+        autoNonVnRestoreAction_->setShortText(*config_.autoNonVnRestore ? _("Auto Non-VN Restore: On") : _("Auto Non-VN Restore: Off"));
+        if (ic) {
+            autoNonVnRestoreAction_->update(ic);
+        }
+    }
+
+    void LotusEngine::updateModernStyleAction(InputContext* ic) {
+        modernStyleAction_->setChecked(*config_.modernStyle);
+        modernStyleAction_->setShortText(*config_.modernStyle ? _("Modern Style: On") : _("Modern Style: Off"));
+        if (ic) {
+            modernStyleAction_->update(ic);
+        }
+    }
+
+    void LotusEngine::updateFreeMarkingAction(InputContext* ic) {
+        freeMarkingAction_->setChecked(*config_.freeMarking);
+        freeMarkingAction_->setShortText(*config_.freeMarking ? _("Free Marking: On") : _("Free Marking: Off"));
+        if (ic) {
+            freeMarkingAction_->update(ic);
+        }
+    }
+
+    void LotusEngine::updateFixUinputWithAckAction(InputContext* ic) {
+        fixUinputWithAckAction_->setChecked(*config_.fixUinputWithAck);
+        fixUinputWithAckAction_->setShortText(*config_.fixUinputWithAck ? _("Fix Uinput With Ack: On") : _("Fix Uinput With Ack: Off"));
+        if (ic) {
+            fixUinputWithAckAction_->update(ic);
+        }
+    }
+
+    void LotusEngine::loadAppRules() {
+        appRules_.clear();
+        std::ifstream file(appRulesPath_);
+        if (!file.is_open())
+            return;
+
+        std::string line;
+        while (std::getline(file, line)) {
+            if (line.empty() || line[0] == '#')
+                continue;
+            auto delimiterPos = line.find('=');
+            if (delimiterPos != std::string::npos) {
+                std::string app     = line.substr(0, delimiterPos);
+                std::string modeStr = line.substr(delimiterPos + 1);
+                appRules_[app]      = modeStringToEnum(modeStr);
+            }
+        }
+        file.close();
+    }
+
+    void LotusEngine::saveAppRules() {
+        std::ofstream file(appRulesPath_, std::ios::trunc);
+        if (!file.is_open())
+            return;
+
+        file << "# Lotus Per-App Configuration\n";
+        for (const auto& pair : appRules_) {
+            std::string modeStr = modeEnumToString(pair.second);
+            file << pair.first << "=" << modeStr << "\n";
+        }
+        file.close();
+    }
+
+    void LotusEngine::closeAppModeMenu() {
+        isSelectingAppMode_ = false;
+        g_mouse_clicked.store(false, std::memory_order_relaxed);
+    }
+
+    namespace {
+        // Custom candidate word class that supports both mouse click and keyboard
+        // selection Unlike DisplayOnlyCandidateWord, this executes a callback when
+        // selected, enabling interactive menu items in the app mode selection UI
+        class AppModeCandidateWord : public CandidateWord {
+          public:
+            AppModeCandidateWord(Text text, std::function<void(InputContext*)> callback) : CandidateWord(std::move(text)), callback_(std::move(callback)) {}
+
+            void select(InputContext* ic) const override {
+                if (callback_) {
+                    callback_(ic);
+                }
+            }
+
+          private:
+            std::function<void(InputContext*)> callback_;
         };
-    };
+    } // namespace
 
-    // Build candidate list for app mode menu
-    // Structure: Header + 8 selectable items (4 Lotus modes + 4 special
-    // options)
-    candidateList->append(std::make_unique<DisplayOnlyCandidateWord>(
-        Text(_("App: ") + currentConfigureApp_)));
-    candidateList->append(std::make_unique<AppModeCandidateWord>(
-        getLabel(LotusMode::Smooth, _("[1] Uinput (smooth)")),
-        applyMode(LotusMode::Smooth)));
-    candidateList->append(std::make_unique<AppModeCandidateWord>(
-        getLabel(LotusMode::Uinput, _("[2] Uinput (Slow)")),
-        applyMode(LotusMode::Uinput)));
-    candidateList->append(std::make_unique<AppModeCandidateWord>(
-        getLabel(LotusMode::UinputHC, _("[3] Uinput (Hardcore)")),
-        applyMode(LotusMode::UinputHC)));
-    candidateList->append(std::make_unique<AppModeCandidateWord>(
-        getLabel(LotusMode::SurroundingText, _("[4] Surrounding Text")),
-        applyMode(LotusMode::SurroundingText)));
-    candidateList->append(std::make_unique<AppModeCandidateWord>(
-        getLabel(LotusMode::Preedit, _("[q] Preedit")),
-        applyMode(LotusMode::Preedit)));
-    candidateList->append(std::make_unique<AppModeCandidateWord>(
-        getLabel(LotusMode::Emoji, _("[w] Emoji Picker")),
-        applyMode(LotusMode::Emoji)));
-    candidateList->append(std::make_unique<AppModeCandidateWord>(
-        getLabel(LotusMode::Off, _("[e] OFF")), applyMode(LotusMode::Off)));
+    void LotusEngine::showAppModeMenu(InputContext* ic) {
+        isSelectingAppMode_ = true;
 
-    candidateList->append(std::make_unique<AppModeCandidateWord>(
-        Text(_("[r] Remove App Settings")), [this, cleanup](InputContext *ic) {
+        auto candidateList = std::make_unique<CommonCandidateList>();
+
+        candidateList->setLayoutHint(CandidateLayoutHint::Vertical);
+        candidateList->setPageSize(10);
+
+        // Helper lambda: Add ">>" marker to highlight current active mode
+        auto getLabel = [&](const LotusMode& modeName, const std::string& modeLabel) {
+            if (modeName == realMode) {
+                return Text(">> " + modeLabel);
+            } else {
+                return Text("   " + modeLabel);
+            }
+        };
+
+        // Helper lambda: Cleanup after mode selection (reset UI and commit pending
+        // text)
+        auto cleanup = [this](InputContext* ic) {
+            isSelectingAppMode_ = false;
+            ic->inputPanel().reset();
+            ic->updateUserInterface(UserInterfaceComponent::InputPanel);
+            auto state = ic->propertyFor(&factory_);
+            state->reset(); // This will commit any pending preedit text
+        };
+
+        // Helper lambda: Create callback to apply selected mode and save
+        // app-specific settings Note: Emoji mode is transient (not saved to
+        // appRules), user must explicitly select it each time they open the menu
+        auto applyMode = [this, cleanup](LotusMode mode) {
+            return [this, mode, cleanup](InputContext* ic) {
+                if (mode != LotusMode::Emoji) {
+                    appRules_[currentConfigureApp_] = mode;
+                    saveAppRules();
+                }
+
+                setMode(mode, ic);
+                cleanup(ic);
+            };
+        };
+
+        // Build candidate list for app mode menu
+        // Structure: Header + 8 selectable items (4 Lotus modes + 4 special
+        // options)
+        candidateList->append(std::make_unique<DisplayOnlyCandidateWord>(Text(_("App: ") + currentConfigureApp_)));
+        candidateList->append(std::make_unique<AppModeCandidateWord>(getLabel(LotusMode::Smooth, _("[1] Uinput (smooth)")), applyMode(LotusMode::Smooth)));
+        candidateList->append(std::make_unique<AppModeCandidateWord>(getLabel(LotusMode::Uinput, _("[2] Uinput (Slow)")), applyMode(LotusMode::Uinput)));
+        candidateList->append(std::make_unique<AppModeCandidateWord>(getLabel(LotusMode::UinputHC, _("[3] Uinput (Hardcore)")), applyMode(LotusMode::UinputHC)));
+        candidateList->append(std::make_unique<AppModeCandidateWord>(getLabel(LotusMode::SurroundingText, _("[4] Surrounding Text")), applyMode(LotusMode::SurroundingText)));
+        candidateList->append(std::make_unique<AppModeCandidateWord>(getLabel(LotusMode::Preedit, _("[q] Preedit")), applyMode(LotusMode::Preedit)));
+        candidateList->append(std::make_unique<AppModeCandidateWord>(getLabel(LotusMode::Emoji, _("[w] Emoji Picker")), applyMode(LotusMode::Emoji)));
+        candidateList->append(std::make_unique<AppModeCandidateWord>(getLabel(LotusMode::Off, _("[e] OFF")), applyMode(LotusMode::Off)));
+
+        candidateList->append(std::make_unique<AppModeCandidateWord>(Text(_("[r] Remove App Settings")), [this, cleanup](InputContext* ic) {
             if (appRules_.count(currentConfigureApp_)) {
                 appRules_.erase(currentConfigureApp_);
                 saveAppRules();
@@ -2236,93 +2080,68 @@ void LotusEngine::showAppModeMenu(InputContext *ic) {
             cleanup(ic);
         }));
 
-    candidateList->append(std::make_unique<AppModeCandidateWord>(
-        Text(_("[`] Type `")), [cleanup](InputContext *ic) {
+        candidateList->append(std::make_unique<AppModeCandidateWord>(Text(_("[`] Type `")), [cleanup](InputContext* ic) {
             cleanup(ic);
             ic->commitString("`");
         }));
 
-    // Set initial cursor position to highlight current active mode
-    // Index mapping: 1=Smooth, 2=Uinput, 3=UinputHC, 4=SurroundingText,
-    // 5=Preedit, 6=Emoji, 7=Off
-    int selectedIndex = 1;
-    switch (realMode) {
-    case LotusMode::Smooth:
-        selectedIndex = 1;
-        break;
-    case LotusMode::Uinput:
-        selectedIndex = 2;
-        break;
-    case LotusMode::UinputHC:
-        selectedIndex = 3;
-        break;
-    case LotusMode::SurroundingText:
-        selectedIndex = 4;
-        break;
-    case LotusMode::Preedit:
-        selectedIndex = 5;
-        break;
-    case LotusMode::Emoji:
-        selectedIndex = 6;
-        break;
-    case LotusMode::Off:
-        selectedIndex = 7;
-        break;
-    default:
-        selectedIndex = 1;
-        break;
-    }
-    candidateList->setGlobalCursorIndex(selectedIndex);
+        // Set initial cursor position to highlight current active mode
+        // Index mapping: 1=Smooth, 2=Uinput, 3=UinputHC, 4=SurroundingText,
+        // 5=Preedit, 6=Emoji, 7=Off
+        int selectedIndex = 1;
+        switch (realMode) {
+            case LotusMode::Smooth: selectedIndex = 1; break;
+            case LotusMode::Uinput: selectedIndex = 2; break;
+            case LotusMode::UinputHC: selectedIndex = 3; break;
+            case LotusMode::SurroundingText: selectedIndex = 4; break;
+            case LotusMode::Preedit: selectedIndex = 5; break;
+            case LotusMode::Emoji: selectedIndex = 6; break;
+            case LotusMode::Off: selectedIndex = 7; break;
+            default: selectedIndex = 1; break;
+        }
+        candidateList->setGlobalCursorIndex(selectedIndex);
 
-    ic->inputPanel().reset();
-    ic->inputPanel().setCandidateList(std::move(candidateList));
-    ic->updateUserInterface(UserInterfaceComponent::InputPanel);
-}
-
-void LotusEngine::setMode(LotusMode mode, InputContext *ic) {
-    realMode = mode;
-    if (ic) {
-        ic->updateUserInterface(UserInterfaceComponent::StatusArea);
+        ic->inputPanel().reset();
+        ic->inputPanel().setCandidateList(std::move(candidateList));
+        ic->updateUserInterface(UserInterfaceComponent::InputPanel);
     }
-}
 
-std::string
-LotusEngine::overrideIcon(const fcitx::InputMethodEntry & /*entry*/) {
-    switch (realMode) {
-    case LotusMode::Off:
-        return "fcitx-lotus-off";
-    case LotusMode::Emoji:
-        return "fcitx-lotus-emoji";
-    default:
-        return {};
+    void LotusEngine::setMode(LotusMode mode, InputContext* ic) {
+        realMode = mode;
+        if (ic) {
+            ic->updateUserInterface(UserInterfaceComponent::StatusArea);
+        }
     }
-}
+
+    std::string LotusEngine::overrideIcon(const fcitx::InputMethodEntry& /*entry*/) {
+        switch (realMode) {
+            case LotusMode::Off: return "fcitx-lotus-off";
+            case LotusMode::Emoji: return "fcitx-lotus-emoji";
+            default: return {};
+        }
+    }
 } // namespace fcitx
 
 FCITX_ADDON_FACTORY(fcitx::LotusFactory)
 
-std::string SubstrChar(const std::string &s, size_t start, size_t len) {
+std::string SubstrChar(const std::string& s, size_t start, size_t len) {
     if (s.empty())
         return "";
-    const char *start_ptr =
-        fcitx_utf8_get_nth_char(s.c_str(), static_cast<uint32_t>(start));
+    const char* start_ptr = fcitx_utf8_get_nth_char(s.c_str(), static_cast<uint32_t>(start));
     if (*start_ptr == '\0')
         return "";
     if (len == std::string::npos)
         return std::string(start_ptr);
-    const char *end_ptr =
-        fcitx_utf8_get_nth_char(start_ptr, static_cast<uint32_t>(len));
+    const char* end_ptr = fcitx_utf8_get_nth_char(start_ptr, static_cast<uint32_t>(len));
     return std::string(start_ptr, end_ptr - start_ptr);
 }
 
-int compareAndSplitStrings(const std::string &A, const std::string &B,
-                           std::string &commonPrefix, std::string &deletedPart,
-                           std::string &addedPart) {
-    const char *ptrA = A.c_str();
-    const char *ptrB = B.c_str();
-    const char *endA = ptrA + A.size();
-    const char *endB = ptrB + B.size();
-    const char *startA = ptrA;
+int compareAndSplitStrings(const std::string& A, const std::string& B, std::string& commonPrefix, std::string& deletedPart, std::string& addedPart) {
+    const char* ptrA   = A.c_str();
+    const char* ptrB   = B.c_str();
+    const char* endA   = ptrA + A.size();
+    const char* endB   = ptrB + B.size();
+    const char* startA = ptrA;
 
     while (ptrA < endA && ptrB < endB) {
         unsigned int lenA = fcitx_utf8_char_len(ptrA);
