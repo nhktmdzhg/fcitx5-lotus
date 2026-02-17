@@ -80,11 +80,14 @@ Cài đặt bằng `yay`:
 # Cú pháp: yay -S <tên-gói>
 yay -S fcitx5-vmk
 ```
+
 Hoặc `paru`:
+
 ```bash
 # Cú pháp: paru -S <tên-gói>
 paru -S fcitx5-vmk
 ```
+
 </details>
 
 <details>
@@ -158,18 +161,25 @@ Rebuild lại system để cài đặt.
 > Việc biên dịch thủ công đòi hỏi bạn phải hiểu rõ về cấu trúc thư mục của hệ thống. Nếu bạn gặp lỗi "Not Available" hoặc thiếu thư viện khi cài theo cách này trên các distro phổ biến (Ubuntu/Fedora...), hãy quay lại dùng OBS để đảm bảo tính ổn định và tự động cập nhật.
 
 ##### Yêu cầu hệ thống
+
 - Ubuntu/Debian
+
 ```bash
 sudo apt-get install cmake extra-cmake-modules libfcitx5core-dev libfcitx5config-dev libfcitx5utils-dev libinput-dev libudev-dev g++ golang hicolor-icon-theme pkg-config libx11-dev
 ```
+
 - Fedora/RHEL
+
 ```bash
 sudo dnf install cmake extra-cmake-modules fcitx5-devel libinput-devel libudev-devel gcc-c++ golang hicolor-icon-theme systemd-devel libX11-devel
 ```
+
 - openSUSE
+
 ```bash
 sudo zypper install cmake extra-cmake-modules fcitx5-devel libinput-devel systemd-devel gcc-c++ go hicolor-icon-theme systemd-devel libX11-devel udev
 ```
+
 ##### Biên dịch và cài đặt
 
 ```bash
@@ -266,7 +276,7 @@ Thêm `fcitx5` vào danh sách ứng dụng khởi động cùng hệ thống (A
 
 | DE / WM        | Hướng dẫn chi tiết                                                                                                             |
 | :------------- | :----------------------------------------------------------------------------------------------------------------------------- |
-| **GNOME**      | **GNOME Tweaks** → _Startup Applications_ → Add → `Fcitx 5`                                                                 |
+| **GNOME**      | **GNOME Tweaks** → _Startup Applications_ → Add → `Fcitx 5`                                                                    |
 | **KDE Plasma** | **System Settings** → _Autostart_ → Add... → Add Application... → `Fcitx 5`                                                    |
 | **Xfce**       | **Settings** → _Session and Startup_ → _Application Autostart_ → Add → `Fcitx 5`                                               |
 | **Cinnamon**   | **System Settings** → _Startup Applications_ → `+` → Choose application → `Fcitx 5`                                            |
@@ -300,8 +310,7 @@ Nếu bạn sử dụng Wayland, Fcitx5 cần được cấu hình thêm để h
   ```ini
   permission = fcitx5-vmk-server, keyboard, allow
   ```
-</details>
-
+  </details>
 
 ---
 
@@ -313,17 +322,17 @@ Nếu bạn sử dụng Wayland, Fcitx5 cần được cấu hình thêm để h
 
 Khi đang ở trong bất kỳ ứng dụng nào, nhấn phím **`** (dấu huyền) để mở menu chọn chế độ gõ:
 
-| Chế độ | Mô tả |
-|---|---|
-| 🚀 **Mode 1 — Uinput (Smooth)** | Chế độ mặc định, phản hồi nhanh. Sử dụng server để gửi phím xoá.<br>_Hạn chế:_ Có thể không tương thích với ứng dụng xử lý chậm (ví dụ: LibreOffice). |
-| 🐢 **Mode 2 — Uinput (Slow)** | Tương tự Mode 1 nhưng tốc độ gửi phím chậm hơn.<br>_Khuyên dùng:_ Cho ứng dụng có tốc độ xử lý input thấp. |
-| 🍷 **Mode 3 — Uinput (Hardcore)** | Biến thể của Mode 1.<br>_Khuyên dùng:_ Khi chạy ứng dụng Windows qua Wine. |
-| ✨ **Mode 4 — Surrounding Text** | Dùng cơ chế Surrounding Text của ứng dụng (tối ưu cho Qt/GTK). Cho phép sửa dấu trên văn bản đã gõ, hoạt động mượt.<br>_Lưu ý:_ Phụ thuộc mức hỗ trợ của ứng dụng (có thể không ổn định trên Firefox). |
-| 📝 **Mode 5 — Preedit** | Hiển thị gạch chân khi gõ. Độ tương thích cao nhất nhưng trải nghiệm kém tự nhiên hơn các mode trên. |
-| 😃 **Emoji Picker** | Tìm kiếm và nhập Emoji (nguồn EmojiOne, hỗ trợ fuzzy search). Xem danh sách [tại đây](data/emoji/EMOJI_GUIDE.md). |
-| 📴 **OFF** | Tắt bộ gõ. |
-| 🔄 **Remove App Settings** | Khôi phục cấu hình mặc định cho ứng dụng hiện tại. |
-| 🚪 **Type `** | Nhập ký tự dấu huyền. |
+| Chế độ                            | Mô tả                                                                                                                                                                                                  |
+| --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 🚀 **Mode 1 — Uinput (Smooth)**   | Chế độ mặc định, phản hồi nhanh. Sử dụng server để gửi phím xoá.<br>_Hạn chế:_ Có thể không tương thích với ứng dụng xử lý chậm (ví dụ: LibreOffice).                                                  |
+| 🐢 **Mode 2 — Uinput (Slow)**     | Tương tự Mode 1 nhưng tốc độ gửi phím chậm hơn.<br>_Khuyên dùng:_ Cho ứng dụng có tốc độ xử lý input thấp.                                                                                             |
+| 🍷 **Mode 3 — Uinput (Hardcore)** | Biến thể của Mode 1.<br>_Khuyên dùng:_ Khi chạy ứng dụng Windows qua Wine.                                                                                                                             |
+| ✨ **Mode 4 — Surrounding Text**  | Dùng cơ chế Surrounding Text của ứng dụng (tối ưu cho Qt/GTK). Cho phép sửa dấu trên văn bản đã gõ, hoạt động mượt.<br>_Lưu ý:_ Phụ thuộc mức hỗ trợ của ứng dụng (có thể không ổn định trên Firefox). |
+| 📝 **Mode 5 — Preedit**           | Hiển thị gạch chân khi gõ. Độ tương thích cao nhất nhưng trải nghiệm kém tự nhiên hơn các mode trên.                                                                                                   |
+| 😃 **Emoji Picker**               | Tìm kiếm và nhập Emoji (nguồn EmojiOne, hỗ trợ fuzzy search). Xem danh sách [tại đây](data/emoji/EMOJI_GUIDE.md).                                                                                      |
+| 📴 **OFF**                        | Tắt bộ gõ.                                                                                                                                                                                             |
+| 🔄 **Remove App Settings**        | Khôi phục cấu hình mặc định cho ứng dụng hiện tại.                                                                                                                                                     |
+| 🚪 **Type `**                     | Nhập ký tự dấu huyền.                                                                                                                                                                                  |
 
 Bộ gõ sẽ lưu chế độ đã dùng gần nhất cho từng ứng dụng và tự động khôi phục cấu hình đó khi bạn mở lại cùng ứng dụng.
 
@@ -342,15 +351,19 @@ Tự động reset trạng thái bộ gõ khi người dùng click chuột hoặ
 <br>
 
 Bạn có thể dùng `pacman` (khuyên dùng), `yay` hoặc `paru` để gỡ cài đặt:
+
 ```bash
 sudo pacman -Rns fcitx5-vmk
 ```
+
 ```bash
 yay -Rns fcitx5-vmk
 ```
+
 ```bash
 paru -Rns fcitx5-vmk
 ```
+
 > **Lưu ý:** Các file config ở `$HOME` sẽ được giữ lại.
 
 </details>
@@ -360,18 +373,25 @@ paru -Rns fcitx5-vmk
 <br>
 
 Gỡ package thông thường qua trình quản lý gói:
+
 - Debian/Ubuntu
+
 ```bash
 sudo apt remove fcitx5-vmk
 ```
+
 - Fedora
+
 ```bash
 sudo dnf remove fcitx5-vmk
 ```
+
 - openSUSE
+
 ```bash
 sudo zypper remove fcitx5-vmk
 ```
+
 </details>
 
 <details>
