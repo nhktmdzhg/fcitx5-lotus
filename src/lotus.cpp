@@ -1601,6 +1601,12 @@ namespace fcitx {
                         break;
                     }
                 }
+                // if waitAck changed, close stale connection to flush any buffered acks
+                if (needWaitAck != waitAck && uinput_client_fd_ >= 0) {
+                    // init client connection
+                    close(uinput_client_fd_);
+                    uinput_client_fd_ = -1;
+                }
                 waitAck = needWaitAck;
             }
         }
