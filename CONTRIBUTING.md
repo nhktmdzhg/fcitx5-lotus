@@ -6,6 +6,7 @@ Cảm ơn bạn quan tâm đến việc đóng góp cho dự án fcitx5-lotus! T
 
 - [Bắt đầu](#bắt-đầu)
 - [Quy trình đóng góp](#quy-trình-đóng-góp)
+- [Quy tắc ứng xử](#quy-tắc-ứng-xử)
 - [Quy tắc code style](#quy-tắc-code-style)
 - [Quy trình Pull Request](#quy-trình-pull-request)
 - [Lưu ý quan trọng về nhánh](#lưu-ý-quan-trọng-về-nhánh)
@@ -78,6 +79,10 @@ feat: add emoji support
 - Add emoji_data.h
 - Update generate_emoji_header.py
 ```
+
+## Quy tắc ứng xử
+
+Mọi thành viên tham gia đóng góp cho dự án này đều phải tuân thủ [Quy tắc Ứng xử cho Cộng tác viên](CODE_OF_CONDUCT.md) để xây dựng một cộng đồng cởi mở, thân thiện và lành mạnh.
 
 ## Quy tắc code style
 
