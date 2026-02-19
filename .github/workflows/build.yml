@@ -8,6 +8,11 @@ on:
     branches:
       - main
       - dev
+
+permissions:
+  contents: read
+  security-events: write
+
 jobs:
   clang-format:
     name: Check clang-format
@@ -25,6 +30,7 @@ jobs:
     needs: clang-format
     runs-on: ubuntu-latest
     container: archlinux:latest
+
     strategy:
       fail-fast: false
       matrix:
