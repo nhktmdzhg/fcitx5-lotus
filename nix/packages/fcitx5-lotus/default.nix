@@ -16,14 +16,14 @@
 }:
 stdenv.mkDerivation rec {
   pname = "fcitx5-lotus";
-  version = "0.12.1";
+  version = "1.0.0";
 
   src = fetchFromGitHub {
     owner = "LotusInputMethod";
     repo = "fcitx5-lotus";
     rev = "v${version}";
     fetchSubmodules = true;
-    sha256 = "sha256-G122muB7KSJHqmlBZVBOdUdVJY6vz0/5nlS4YD+iMfU";
+    sha256 = "sha256-n8kG/mYYxCSZCRCtBq1QR9g2zueZ57l5r9tp/dUg7v0=";
   };
 
   nativeBuildInputs = [
@@ -60,7 +60,7 @@ stdenv.mkDerivation rec {
 
   # change checking exe_path logic to make it work on NixOS since executable files on NixOS are not located in /usr/bin
   postPatch = ''
-    substituteInPlace src/lotus.cpp \
+    substituteInPlace src/lotus-monitor.cpp \
       --replace-fail 'strcmp(exe_path, "/usr/bin/fcitx5-lotus-server") == 0' \
                 '(strncmp(exe_path, "/nix/store/", 22) == 0 && strlen(exe_path) >= 22 && strcmp(exe_path + strlen(exe_path) - 22, "/bin/fcitx5-lotus-server") == 0)'
     substituteInPlace server/lotus-server.cpp \
