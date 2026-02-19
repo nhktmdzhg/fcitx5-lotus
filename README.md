@@ -42,11 +42,86 @@
 
 Dự án này là bản fork được tối ưu hóa từ [bộ gõ VMK](https://github.com/thanhpy2009/VMK). Chân thành cảm ơn tác giả Thành đã đặt nền móng cho bộ gõ này.
 
-> **Lưu ý:** Nếu bạn đã cài đặt bộ gõ fcitx5-vmk trước đây, vui lòng gỡ cài đặt nó trước khi cài đặt bộ gõ này để tránh xung đột và tiết kiệm tài nguyên máy. Mọi config của bộ gõ cũ sẽ không được sử dụng lại trong bản mới này, bạn có thể xoá bỏ nó bằng lệnh sau sau:
+> **Lưu ý:** Gỡ và xoá cấu hình `fcitx5-vmk` trước khi cài đặt `fcitx5-lotus` để tránh phát sinh lỗi.
+> <details>
+> <summary><b>Gỡ và xoá cấu hình <code>fcitx5-vmk</code></b></summary>
+>
+> <details>
+> <summary><b>Arch / Arch-based - AUR</b></summary>
+> <br>
+>
+> Bạn có thể dùng `pacman` (khuyên dùng), `yay` hoặc `paru` để gỡ cài đặt:
+>
+> ```bash
+> sudo pacman -Rns fcitx5-vmk
+> ```
+>
+> ```bash
+> yay -Rns fcitx5-vmk
+> ```
+>
+> ```bash
+> paru -Rns fcitx5-vmk
+> ```
+>
+> > **Lưu ý:** Các file config ở `$HOME` sẽ được giữ lại.
+>
+> </details>
+>
+> <details>
+> <summary><b>Debian / Ubuntu / Fedora / openSUSE - Open Build Service</b></summary>
+> <br>
+>
+> - <b>Debian/Ubuntu</b>
+>
+> ```bash
+> sudo apt remove fcitx5-vmk
+> ```
+>
+> - <b>Fedora</b>
+>
+> ```bash
+> sudo dnf remove fcitx5-vmk
+> ```
+>
+> - <b>openSUSE</b>
+>
+> ```bash
+> sudo zypper remove fcitx5-vmk
+> ```
+>
+> </details>
+>
+> <details>
+> <summary><b>NixOS</b></summary>
+> <br>
+>
+> Xóa (hoặc comment) dòng `services.fcitx5-vmk` và `inputs` trong file config, sau đó rebuild lại system. NixOS sẽ tự dọn dẹp.
+>
+> </details>
+>
+> <details>
+> <summary><b>Biên dịch từ nguồn</b></summary>
+> <br>
+>
+> Vào lại thư mục source code đã build và chạy:
+>
+> ```bash
+> sudo make uninstall
+> ```
+>
+> </details>
+>
+> ---
+> Xóa cấu hình `vmk` không tương thích:
 >
 > ```bash
 > rm ~/.config/fcitx5/conf/vmk-*.conf
 > ```
+>
+> </details>
+
+
 
 <details>
   <summary><b>Mục lục</b></summary>
@@ -166,19 +241,19 @@ Rebuild lại system để cài đặt.
 
 ##### Yêu cầu hệ thống
 
-- Ubuntu/Debian
+- **Debian/Ubuntu**
 
 ```bash
 sudo apt-get install cmake extra-cmake-modules libfcitx5core-dev libfcitx5config-dev libfcitx5utils-dev libinput-dev libudev-dev g++ golang hicolor-icon-theme pkg-config libx11-dev
 ```
 
-- Fedora/RHEL
+- **Fedora/RHEL**
 
 ```bash
 sudo dnf install cmake extra-cmake-modules fcitx5-devel libinput-devel libudev-devel gcc-c++ golang hicolor-icon-theme systemd-devel libX11-devel
 ```
 
-- openSUSE
+- **openSUSE**
 
 ```bash
 sudo zypper install cmake extra-cmake-modules fcitx5-devel libinput-devel systemd-devel gcc-c++ go hicolor-icon-theme systemd-devel libX11-devel udev
@@ -320,7 +395,7 @@ Sau khi đã log out và log in lại:
 
 ### 1. Tùy chỉnh bộ gõ
 
-- **Truy cập:** Nhấp chuột phải vào biểu tượng Lotus trên system tray để mở tuỳ chỉnh.
+- **Cách truy cập:** Nhấp chuột phải vào biểu tượng Lotus trên system tray để mở tuỳ chỉnh.
 - **Các lựa chọn để tuỳ chỉnh:** _Typing Mode_, _Input Method_, _Charset_, _Spell Check_, _Macro_, _Capitalize Macro_, _Auto non-VN restore_, _Modern Style_, _Free Marking_, _Fix Uinput with ack_.
 
 ### 2. Menu chuyển chế độ gõ
@@ -336,7 +411,7 @@ Khi đang ở trong bất kỳ ứng dụng nào, nhấn phím **`** để mở 
 | **Preedit**           |  **Q**   | Hiển thị gạch chân khi gõ. <br> **Tối ưu:** hầu hết ứng dụng.                                                                        |
 | **Emoji Picker**      |  **W**   | Tìm kiếm và nhập Emoji (nguồn EmojiOne, hỗ trợ fuzzy search).                                                                        |
 | **OFF**               |  **E**   | Tắt bộ gõ.                                                                                                                           |
-| **Default Typing**    |  **R**   | Chuyển về chế độ gõ mặc định được cấu hình tại tuỳ chọn _Typing mode_.                                                               |
+| **Default Typing**    |  **R**   | Chế độ gõ mặc định được cấu hình tại tuỳ chọn _Typing mode_.                                                               |
 | **Type `**            |  **`**   | Nhập ký tự **`**.                                                                                                                    |
 
 Bộ gõ sẽ tự động lưu chế độ gõ đã dùng gần nhất cho từng ứng dụng và khôi phục cấu hình đó khi bạn mở lại chúng.
@@ -377,19 +452,19 @@ paru -Rns fcitx5-lotus
 <summary><b>Debian / Ubuntu / Fedora / openSUSE - Open Build Service</b></summary>
 <br>
 
-- Debian/Ubuntu
+- **Debian/Ubuntu**
 
 ```bash
 sudo apt remove fcitx5-lotus
 ```
 
-- Fedora
+- **Fedora**
 
 ```bash
 sudo dnf remove fcitx5-lotus
 ```
 
-- openSUSE
+- **openSUSE**
 
 ```bash
 sudo zypper remove fcitx5-lotus

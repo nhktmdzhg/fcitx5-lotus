@@ -64,7 +64,7 @@ msgstr "Tự động khôi phục phím với từ sai"
 
 #: src/lotus-config.h:138 src/lotus.cpp:1445
 msgid "Use oà, _uý (instead of òa, úy)"
-msgstr "Sử dụng oà, uý (thay vì òa, úy)"
+msgstr "Sử dụng oà, _uý (thay vì òa, _úy)"
 
 #: src/lotus-config.h:139 src/lotus.cpp:1457
 msgid "Allow type with more freedom"
@@ -176,11 +176,11 @@ msgstr "[W] Chọn Emoji"
 
 #: src/lotus.cpp:2074
 msgid "[E] OFF"
-msgstr "[e] Tắt"
+msgstr "[E] Tắt"
 
 #: src/lotus.cpp:2076
 msgid "[R] Default Typing"
-msgstr "[R] Chế độ mặc định"
+msgstr "[R] Chế độ gõ mặc định"
 
 #: src/lotus.cpp:2085
 msgid "[`] Type `"

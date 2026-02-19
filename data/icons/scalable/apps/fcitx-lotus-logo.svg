@@ -26,6 +26,6 @@ transform="rotate(26, 24, 35)"/>
   <path d="M 24,35 C 19,30 17,20 24,13 C 31,20 29,30 24,35"
 fill="#FFFFFF"/>
 <!-- Dấu chấm -->
-  <circle cx="24" cy="34" r="2" fill="
+  <circle cx="24" cy="33" r="2" fill="
 #FFFFFF" />
 </svg>
