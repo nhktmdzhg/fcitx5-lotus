@@ -42,9 +42,9 @@
 
 Dự án này là bản fork được tối ưu hóa từ [bộ gõ VMK](https://github.com/thanhpy2009/VMK). Chân thành cảm ơn tác giả Thành đã đặt nền móng cho bộ gõ này.
 
-> **Lưu ý:** Gỡ `fcitx5-vmk` trước khi cài đặt `fcitx5-lotus` để tránh xung đột tài nguyên.  
+> **Lưu ý:** Gỡ và xoá cấu hình `fcitx5-vmk` trước khi cài đặt `fcitx5-lotus` để tránh phát sinh lỗi.
 > <details>
-> <summary><b>Gỡ cài đặt fcitx5-vmk</b></summary>
+> <summary><b>Gỡ và xoá cấu hình <code>fcitx5-vmk</code></b></summary>
 >
 > <details>
 > <summary><b>Arch / Arch-based - AUR</b></summary>
@@ -72,21 +72,19 @@ Dự án này là bản fork được tối ưu hóa từ [bộ gõ VMK](https:/
 > <summary><b>Debian / Ubuntu / Fedora / openSUSE - Open Build Service</b></summary>
 > <br>
 >
-> Gỡ package thông thường qua trình quản lý gói:
->
-> - Debian/Ubuntu
+> - <b>Debian/Ubuntu</b>
 >
 > ```bash
 > sudo apt remove fcitx5-vmk
 > ```
 >
-> - Fedora
+> - <b>Fedora</b>
 >
 > ```bash
 > sudo dnf remove fcitx5-vmk
 > ```
 >
-> - openSUSE
+> - <b>openSUSE</b>
 >
 > ```bash
 > sudo zypper remove fcitx5-vmk
@@ -114,6 +112,7 @@ Dự án này là bản fork được tối ưu hóa từ [bộ gõ VMK](https:/
 >
 > </details>
 >
+> ---
 > Xóa cấu hình `vmk` không tương thích:
 >
 > ```bash
