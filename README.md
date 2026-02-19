@@ -114,7 +114,7 @@ Dự án này là bản fork được tối ưu hóa từ [bộ gõ VMK](https:/
 >
 > </details>
 >
-> Xóa cấu hình `vmk` còn không tương thích:
+> Xóa cấu hình `vmk` không tương thích:
 >
 > ```bash
 > rm ~/.config/fcitx5/conf/vmk-*.conf
