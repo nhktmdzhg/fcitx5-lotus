@@ -781,8 +781,7 @@ namespace fcitx {
             current_backspace_count_ = -1;
             expected_backspaces_     = 0;
         }
-        if (needEngineReset.load() &&
-            (realMode == LotusMode::Uinput || realMode == LotusMode::SurroundingText || realMode == LotusMode::UinputHC || realMode == LotusMode::Smooth)) {
+        if (needEngineReset.load() && realMode != LotusMode::Off) {
             oldPreBuffer_.clear();
             history_.clear();
             ResetEngine(lotusEngine_.handle());
@@ -855,6 +854,7 @@ namespace fcitx {
                     ic_->commitString(commit.get());
                 }
             }
+            ResetEngine(lotusEngine_.handle());
         }
 
         clearAllBuffers();

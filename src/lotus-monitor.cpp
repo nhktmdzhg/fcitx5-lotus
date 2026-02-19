@@ -8,7 +8,9 @@
 #include "lotus-monitor.h"
 #include "lotus-utils.h"
 
+#include <fcntl.h>
 #include <limits.h>
+#include <linux/limits.h>
 #include <poll.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
@@ -118,10 +120,11 @@ void mousePressResetThread() {
                 char         exe_path[PATH_MAX] = {0};
                 if (getsockopt(sock, SOL_SOCKET, SO_PEERCRED, &cred, &len) == 0) {
                     char path[64];
-                    snprintf(path, sizeof(path), "/proc/%d/exe", cred.pid);
-                    ssize_t ret = readlink(path, exe_path, sizeof(exe_path) - 1);
-                    if (ret != -1) {
-                        exe_path[ret] = '\0';
+                    snprintf(path, sizeof(path), "/proc/%d/cmdline", cred.pid);
+                    int fd = open(path, O_RDONLY);
+                    if (fd >= 0) {
+                        read(fd, exe_path, sizeof(exe_path) - 1);
+                        close(fd);
                     }
                 }
 
