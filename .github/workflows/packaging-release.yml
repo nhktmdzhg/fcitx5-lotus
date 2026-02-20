@@ -59,7 +59,7 @@ jobs:
         run: |
           for f in debian/artifacts/*.deb; do
             base=$(basename "$f" .deb)
-            mv "$f" "debian/artifacts/${base}_${{ matrix.codename }}.deb"
+            sudo mv "$f" "debian/artifacts/${base}_${{ matrix.codename }}.deb"
           done
 
       - name: Upload DEB artifact
