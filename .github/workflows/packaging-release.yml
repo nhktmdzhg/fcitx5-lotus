@@ -110,6 +110,7 @@ jobs:
         env:
           GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
         run: |
+          sudo chmod -R 777 output/
           echo "${{ secrets.GPG_PRIVATE_KEY }}" | gpg --batch --import
 
           mkdir -p ~/.gnupg
@@ -186,6 +187,7 @@ jobs:
         env:
           GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
         run: |
+          sudo chmod -R 777 output/
           echo "${{ secrets.GPG_PRIVATE_KEY }}" | gpg --batch --import
 
           mkdir -p ~/.gnupg
