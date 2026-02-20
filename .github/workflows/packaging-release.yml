@@ -224,6 +224,8 @@ jobs:
     name: Create GitHub Release
     needs: [build-deb, build-rpm-fedora, build-rpm-opensuse]
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
 
     steps:
       - name: Download all artifacts
