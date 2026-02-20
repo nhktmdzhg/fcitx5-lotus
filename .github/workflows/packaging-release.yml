@@ -194,7 +194,7 @@ jobs:
             mkdir -p /work/output
             for rpm in ~/rpmbuild/RPMS/**/*.rpm; do
               base=$(basename "$rpm" .rpm)
-              cp "$rpm" "/work/output/${base}.${{ matrix.releasever }}.rpm"
+              mv "$rpm" "/work/output/${base}.${{ matrix.releasever }}.rpm"
             done
             find ~/rpmbuild/RPMS -name '*.rpm' -exec cp {} /work/output/ \;
 
