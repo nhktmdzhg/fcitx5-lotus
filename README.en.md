@@ -294,6 +294,7 @@ After installation, you need to follow these steps to enable the fcitx5-lotus in
 The server helps the input method interact better with the system (especially sending backspace and fixing errors).
 
 - **Bash / Zsh:**
+
 ```bash
 # Enable and start the service (automatically fixes missing systemd user errors if any)
 sudo systemctl enable --now fcitx5-lotus-server@$(whoami).service || \
@@ -301,13 +302,13 @@ sudo systemctl enable --now fcitx5-lotus-server@$(whoami).service || \
 ```
 
 - **Fish shell:**
+
 ```fish
 # Enable and start the service (automatically fixes missing systemd user errors if any)
 sudo systemctl enable --now fcitx5-lotus-server@(whoami).service; or begin
     sudo systemd-sysusers; and sudo systemctl enable --now fcitx5-lotus-server@(whoami).service
 end
 ```
-
 
 ```bash
 # Check status (if you see green active (running), it's OK)
@@ -319,6 +320,7 @@ systemctl status fcitx5-lotus-server@$(whoami).service
 The input method will not work without these variables.
 
 - **Bash / Zsh:**
+
 ```bash
 # This command will add the configuration to ~/.bash_profile, do the same for .zprofile
 cat <<EOF >> ~/.bash_profile
@@ -331,6 +333,7 @@ EOF
 ```
 
 - **Fish shell:**
+
 ```fish
 # Add configuration to ~/.config/fish/config.fish
 cat >> ~/.config/fish/config.fish <<'EOF'
@@ -343,7 +346,6 @@ set -gx SDL_IM_MODULE fcitx
 set -gx GLFW_IM_MODULE ibus
 EOF
 ```
-
 
 Log out and log in to apply changes.
 
@@ -419,16 +421,16 @@ After logging out and logging in again:
 
 <a id="usage-guide"></a>
 
-## 📖 Usage Guide
+## 📖 Usage guide
 
-### 1. Customize Input Method
+### 1. Customize input method
 
-- **How to access:** Right-click the Lotus icon on the system tray to open customization.
+- **Access:** Right-click the Lotus icon on the system tray to open customization.
 - **Customization options:** _Typing Mode_, _Input Method_, _Charset_, _Spell Check_, _Macro_, _Capitalize Macro_, _Auto non-VN restore_, _Modern Style_, _Free Marking_, _Fix Uinput with ack_, _Mode menu_.
 
-### 2. Typing Mode Menu
+### 2. Typing mode menu
 
-In any application, press the **`** key to open the typing mode selection menu, where you can use the mouse or shortcuts to select.  If the backtick shortcut interferes with your workflow (e.g. when writing Markdown code fences), you can turn it off in Lotus' settings using the **Mode menu** toggle.
+In any application, press the **`** key to open the typing mode selection menu, where you can use the mouse or shortcuts to select. If the backtick shortcut interferes with your workflow (e.g. when writing Markdown code fences), you can turn it off in Lotus' settings using the **Mode menu** toggle.
 
 | Mode                  | Shortcut | Description                                                                                                                                         |
 | :-------------------- | :------: | :-------------------------------------------------------------------------------------------------------------------------------------------------- |
