@@ -55,6 +55,13 @@ jobs:
           docker-image: ${{ matrix.distro }}
           buildpackage-opts: --build=binary --no-sign
 
+      - name: Rename DEB artifacts
+        run: |
+          for f in debian/artifacts/*.deb; do
+            base=$(basename "$f" .deb)
+            mv "$f" "debian/artifacts/${base}_${{ matrix.codename }}.deb"
+          done
+
       - name: Upload DEB artifact
         uses: actions/upload-artifact@v4
         with:
@@ -104,6 +111,10 @@ jobs:
                 -czf ~/rpmbuild/SOURCES/fcitx5-lotus-${VERSION}.tar.gz .
             rpmbuild -bb ~/rpmbuild/SPECS/fcitx5-lotus.spec
             mkdir -p /work/output
+            for rpm in ~/rpmbuild/RPMS/**/*.rpm; do
+              base=$(basename "$rpm" .rpm)
+              cp "$rpm" "/work/output/${base}.${{ matrix.releasever }}.rpm"
+            done
             find ~/rpmbuild/RPMS -name '*.rpm' -exec cp {} /work/output/ \;
 
       - name: Sign RPM packages
@@ -181,6 +192,10 @@ jobs:
                 -czf ~/rpmbuild/SOURCES/fcitx5-lotus-${VERSION}.tar.gz .
             rpmbuild -bb ~/rpmbuild/SPECS/fcitx5-lotus.spec
             mkdir -p /work/output
+            for rpm in ~/rpmbuild/RPMS/**/*.rpm; do
+              base=$(basename "$rpm" .rpm)
+              cp "$rpm" "/work/output/${base}.${{ matrix.releasever }}.rpm"
+            done
             find ~/rpmbuild/RPMS -name '*.rpm' -exec cp {} /work/output/ \;
 
       - name: Sign RPM packages
