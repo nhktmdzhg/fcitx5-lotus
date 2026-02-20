@@ -293,10 +293,19 @@ Sau khi cài đặt xong, bạn cần thực hiện các bước sau để bật
 
 Server giúp bộ gõ tương tác với hệ thống tốt hơn (đặc biệt là gửi phím xóa và sửa lỗi).
 
+- **Bash / Zsh:**
 ```bash
 # Bật và khởi động service (tự động fix lỗi thiếu user systemd nếu có)
 sudo systemctl enable --now fcitx5-lotus-server@$(whoami).service || \
 (sudo systemd-sysusers && sudo systemctl enable --now fcitx5-lotus-server@$(whoami).service)
+```
+
+- **Fish shell:**
+```fish
+# Bật và khởi động service (tự động fix lỗi thiếu user systemd nếu có)
+sudo systemctl enable --now fcitx5-lotus-server@(whoami).service; or begin
+    sudo systemd-sysusers; and sudo systemctl enable --now fcitx5-lotus-server@(whoami).service
+end
 ```
 
 ```bash
@@ -306,16 +315,31 @@ systemctl status fcitx5-lotus-server@$(whoami).service
 
 ### 2. Thiết lập biến môi trường
 
-Bộ gõ sẽ không hoạt động nếu thiếu các biến này. Chạy lệnh dưới để thêm vào file cấu hình shell của bạn (`~/.bash_profile` hoặc `~/.zprofile`):
+Bộ gõ sẽ không hoạt động nếu thiếu các biến này.
 
+- **Bash / Zsh:**
 ```bash
-# Lệnh này sẽ thêm cấu hình vào ~/.bash_profile, với .zprofile làm tương tự
+# Thêm cấu hình vào ~/.bash_profile (với .zprofile làm tương tự)
 cat <<EOF >> ~/.bash_profile
 export GTK_IM_MODULE=fcitx
 export QT_IM_MODULE=fcitx
 export XMODIFIERS=@im=fcitx
 export SDL_IM_MODULE=fcitx
 export GLFW_IM_MODULE=ibus
+EOF
+```
+
+- **Fish shell:**
+```fish
+# Thêm cấu hình vào ~/.config/fish/config.fish
+cat >> ~/.config/fish/config.fish <<'EOF'
+
+# Input Method Configuration for Fcitx5
+set -Ux GTK_IM_MODULE fcitx
+set -Ux QT_IM_MODULE fcitx
+set -Ux XMODIFIERS "@im=fcitx"
+set -gx SDL_IM_MODULE fcitx
+set -gx GLFW_IM_MODULE ibus
 EOF
 ```
 
