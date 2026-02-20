@@ -106,21 +106,34 @@ jobs:
             mkdir -p /work/output
             find ~/rpmbuild/RPMS -name '*.rpm' -exec cp {} /work/output/ \;
 
-      - name: Write GPG key to file
+      - name: Sign RPM packages
+        env:
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
         run: |
-          echo "${{ secrets.GPG_PRIVATE_KEY }}" > /tmp/gpg.key
+          echo "${{ secrets.GPG_PRIVATE_KEY }}" | gpg --batch --import
 
-      - name: Sign RPM
-        uses: signalwire/sign-rpm-packages-action@v1.0.0
-        with:
-          gpg_name: 'Nguyen Hoang Ky'
-          gpg_file: /tmp/gpg.key
-          rpm_path: output/
-          target_path: output/
+          mkdir -p ~/.gnupg
+          echo "allow-loopback-pinentry" >> ~/.gnupg/gpg-agent.conf
+          gpg-connect-agent reloadagent /bye || true
 
-      - name: Remove GPG key file
-        if: always()
-        run: rm -f /tmp/gpg.key
+          KEYID=$(gpg --list-secret-keys --with-colons | grep '^sec' | head -1 | cut -d: -f5)
+
+          cat > ~/.rpmmacros << EOF
+          %_gpg_name ${KEYID}
+          %__gpg_sign_cmd %{__gpg} gpg \
+            --no-verbose --no-armor --batch \
+            --pinentry-mode loopback \
+            --passphrase-fd 3 \
+            -u "%{_gpg_name}" \
+            -sbo %{__signature_filename} \
+            %{__plaintext_filename}
+          EOF
+
+          for rpm in output/*.rpm; do
+            rpmsign --addsign "$rpm" 3< <(echo "$GPG_PASSPHRASE")
+          done
+
+          gpg --batch --yes --delete-secret-and-public-key "$KEYID" || true
 
       - name: Upload RPM artifact
         uses: actions/upload-artifact@v4
@@ -169,21 +182,34 @@ jobs:
             mkdir -p /work/output
             find ~/rpmbuild/RPMS -name '*.rpm' -exec cp {} /work/output/ \;
 
-      - name: Write GPG key to file
+      - name: Sign RPM packages
+        env:
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
         run: |
-          echo "${{ secrets.GPG_PRIVATE_KEY }}" > /tmp/gpg.key
+          echo "${{ secrets.GPG_PRIVATE_KEY }}" | gpg --batch --import
 
-      - name: Sign RPM
-        uses: signalwire/sign-rpm-packages-action@v1.0.0
-        with:
-          gpg_name: 'Nguyen Hoang Ky'
-          gpg_file: /tmp/gpg.key
-          rpm_path: output/
-          target_path: output/
+          mkdir -p ~/.gnupg
+          echo "allow-loopback-pinentry" >> ~/.gnupg/gpg-agent.conf
+          gpg-connect-agent reloadagent /bye || true
 
-      - name: Remove GPG key file
-        if: always()
-        run: rm -f /tmp/gpg.key
+          KEYID=$(gpg --list-secret-keys --with-colons | grep '^sec' | head -1 | cut -d: -f5)
+
+          cat > ~/.rpmmacros << EOF
+          %_gpg_name ${KEYID}
+          %__gpg_sign_cmd %{__gpg} gpg \
+            --no-verbose --no-armor --batch \
+            --pinentry-mode loopback \
+            --passphrase-fd 3 \
+            -u "%{_gpg_name}" \
+            -sbo %{__signature_filename} \
+            %{__plaintext_filename}
+          EOF
+
+          for rpm in output/*.rpm; do
+            rpmsign --addsign "$rpm" 3< <(echo "$GPG_PASSPHRASE")
+          done
+
+          gpg --batch --yes --delete-secret-and-public-key "$KEYID" || true
 
       - name: Upload RPM artifact
         uses: actions/upload-artifact@v4
