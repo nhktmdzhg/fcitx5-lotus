@@ -261,6 +261,18 @@ namespace fcitx {
         }));
         uiManager.registerAction("lotus-fixuinputwithack", fixUinputWithAckAction_.get());
 
+        lotusIconsAction_ = std::make_unique<SimpleAction>();
+        lotusIconsAction_->setLongText(_("Use Lotus status icons"));
+        lotusIconsAction_->setIcon("emblem-default");
+        lotusIconsAction_->setCheckable(true);
+        connections_.emplace_back(lotusIconsAction_->connect<SimpleAction::Activated>([this](InputContext* ic) {
+            config_.useLotusIcons.setValue(!*config_.useLotusIcons);
+            saveConfig();
+            refreshOption();
+            updateLotusIconsAction(ic);
+        }));
+        uiManager.registerAction("lotus-icons", lotusIconsAction_.get());
+
         reloadConfig();
         globalMode_ = modeStringToEnum(config_.mode.value());
         updateModeAction(nullptr);
@@ -329,6 +341,7 @@ namespace fcitx {
         updateModernStyleAction(nullptr);
         updateFreeMarkingAction(nullptr);
         updateFixUinputWithAckAction(nullptr);
+        updateLotusIconsAction(nullptr);
     }
 
     void LotusEngine::setSubConfig(const std::string& path, const RawConfig& config) {
@@ -408,6 +421,7 @@ namespace fcitx {
         statusArea.addAction(StatusGroup::InputMethod, modernStyleAction_.get());
         statusArea.addAction(StatusGroup::InputMethod, freeMarkingAction_.get());
         statusArea.addAction(StatusGroup::InputMethod, fixUinputWithAckAction_.get());
+        statusArea.addAction(StatusGroup::InputMethod, lotusIconsAction_.get());
     }
 
     void LotusEngine::keyEvent(const InputMethodEntry& entry, KeyEvent& keyEvent) {
@@ -731,6 +745,14 @@ namespace fcitx {
         }
     }
 
+    void LotusEngine::updateLotusIconsAction(InputContext* ic) {
+        lotusIconsAction_->setChecked(*config_.useLotusIcons);
+        lotusIconsAction_->setShortText(*config_.useLotusIcons ? _("Lotus Icons: On") : _("Lotus Icons: Off"));
+        if (ic) {
+            lotusIconsAction_->update(ic);
+        }
+    }
+
     void LotusEngine::loadAppRules() {
         appRules_.clear();
         std::ifstream file(appRulesPath_);
@@ -854,10 +876,17 @@ namespace fcitx {
     }
 
     std::string LotusEngine::overrideIcon(const InputMethodEntry& /*entry*/) {
+        if (!config_.useLotusIcons) {
+            switch (realMode) {
+                case LotusMode::Off:   return "fcitx-lotus-off-default";
+                case LotusMode::Emoji: return "fcitx-lotus-emoji-default";
+                default:               return "fcitx-lotus-default";
+            }
+        }
         switch (realMode) {
-            case LotusMode::Off: return "fcitx-lotus-off";
+            case LotusMode::Off:   return "fcitx-lotus-off";
             case LotusMode::Emoji: return "fcitx-lotus-emoji";
-            default: return {};
+            default:               return {};
         }
     }
 

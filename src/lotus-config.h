@@ -208,6 +208,7 @@ namespace fcitx {
         Option<bool>    modernStyle{this, "ModernStyle", _("Use oà, _uý (instead of òa, úy)"), true};
         Option<bool>    freeMarking{this, "FreeMarking", _("Allow type with more freedom"), true};
         Option<bool>    fixUinputWithAck{this, "FixUinputWithAck", _("Fix uinput mode with ack"), false};
+        Option<bool>    useLotusIcons{this, "UseLotusIcons", _("Use Lotus status icons"), false};
         SubConfigOption customKeymap{this, "CustomKeymap", _("Custom Keymap"), "fcitx://config/addon/lotus/custom_keymap"};);
 
 } // namespace fcitx

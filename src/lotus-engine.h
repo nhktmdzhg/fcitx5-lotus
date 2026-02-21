@@ -235,6 +235,12 @@ namespace fcitx {
         void updateFixUinputWithAckAction(InputContext* ic);
 
         /**
+         * @brief Updates the Lotus icons toggle action UI.
+         * @param ic Current input context.
+         */
+        void updateLotusIconsAction(InputContext* ic);
+
+        /**
          * @brief Updates the input method action UI.
          * @param ic Current input context.
          */
@@ -315,6 +321,7 @@ namespace fcitx {
         std::unique_ptr<SimpleAction>                    modernStyleAction_;
         std::unique_ptr<SimpleAction>                    freeMarkingAction_;
         std::unique_ptr<SimpleAction>                    fixUinputWithAckAction_;
+        std::unique_ptr<SimpleAction>                    lotusIconsAction_;
         std::vector<ScopedConnection>                    connections_;
         CGoObject                                        dictionary_;
         std::unordered_map<std::string, LotusMode>       appRules_;
