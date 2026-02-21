@@ -15,27 +15,27 @@ jobs:
           - distro: debian:12
             codename: bookworm
             parallel: 2
-          - distro: debian:13
-            codename: trixie
-            parallel: 4
-          - distro: debian:testing
-            codename: testing
-            parallel: 4
-          - distro: debian:unstable
-            codename: sid
-            parallel: 4
-          - distro: ubuntu:22.04
-            codename: jammy
-            parallel: 1
-          - distro: ubuntu:24.04
-            codename: noble
-            parallel: 2
-          - distro: ubuntu:25.04
-            codename: plucky
-            parallel: 4
-          - distro: ubuntu:25.10
-            codename: questing
-            parallel: 4
+          # - distro: debian:13
+          #   codename: trixie
+          #   parallel: 4
+          # - distro: debian:testing
+          #   codename: testing
+          #   parallel: 4
+          # - distro: debian:unstable
+          #   codename: sid
+          #   parallel: 4
+          # - distro: ubuntu:22.04
+          #   codename: jammy
+          #   parallel: 1
+          # - distro: ubuntu:24.04
+          #   codename: noble
+          #   parallel: 2
+          # - distro: ubuntu:25.04
+          #   codename: plucky
+          #   parallel: 4
+          # - distro: ubuntu:25.10
+          #   codename: questing
+          #   parallel: 4
 
     runs-on: ubuntu-latest
 
@@ -75,10 +75,10 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - distro: fedora:42
-            releasever: 42
-          - distro: fedora:43
-            releasever: 43
+          # - distro: fedora:42
+          #   releasever: 42
+          # - distro: fedora:43
+          #   releasever: 43
           - distro: fedora:rawhide
             releasever: rawhide
 
@@ -278,18 +278,31 @@ jobs:
         with:
           path: artifacts/
 
-      - name: Import GPG key + trust
-        run: |
-          echo "${{ secrets.GPG_PRIVATE_KEY }}" | gpg --batch --import
-          FINGERPRINT=$(gpg --list-secret-keys --with-colons \
-            | grep '^fpr' | head -1 | cut -d: -f10)
-          echo "${FINGERPRINT}:6:" | gpg --import-ownertrust
+            - name: Import GPG key + trust
+              env:
+                GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+              run: |
+                mkdir -p ~/.gnupg
+                chmod 700 ~/.gnupg
 
-          mkdir -p ~/.gnupg
-          chmod 700 ~/.gnupg
-          echo "allow-loopback-pinentry" >> ~/.gnupg/gpg-agent.conf
-          gpg-connect-agent reloadagent /bye || true
-          echo "FINGERPRINT=${FINGERPRINT}" >> $GITHUB_ENV
+                echo "allow-loopback-pinentry" > ~/.gnupg/gpg-agent.conf
+                echo "pinentry-mode loopback"  > ~/.gnupg/gpg.conf
+
+                gpg --batch --import <<< "${{ secrets.GPG_PRIVATE_KEY }}"
+
+                FINGERPRINT=$(gpg --list-secret-keys --with-colons \
+                  | grep '^fpr' | head -1 | cut -d: -f10)
+                echo "${FINGERPRINT}:6:" | gpg --import-ownertrust
+
+                gpg-connect-agent reloadagent /bye
+
+                KEYGRIP=$(gpg --list-secret-keys --with-keygrip --with-colons \
+                  | grep '^grp' | head -1 | cut -d: -f10)
+
+                echo "$GPG_PASSPHRASE" \
+                  | /usr/lib/gnupg2/gpg-preset-passphrase --preset "$KEYGRIP"
+
+                echo "FINGERPRINT=${FINGERPRINT}" >> $GITHUB_ENV
 
       - name: Create APT repo structure
         run: |
