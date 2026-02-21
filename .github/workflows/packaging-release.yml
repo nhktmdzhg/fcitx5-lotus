@@ -115,7 +115,6 @@ jobs:
               base=$(basename "$rpm" .rpm)
               mv "$rpm" "/work/output/${base}.${{ matrix.releasever }}.rpm"
             done
-            find ~/rpmbuild/RPMS -name '*.rpm' -exec cp {} /work/output/ \;
 
       - name: Sign RPM packages
         env:
@@ -196,7 +195,6 @@ jobs:
               base=$(basename "$rpm" .rpm)
               mv "$rpm" "/work/output/${base}.${{ matrix.releasever }}.rpm"
             done
-            find ~/rpmbuild/RPMS -name '*.rpm' -exec cp {} /work/output/ \;
 
       - name: Sign RPM packages
         env:
@@ -259,3 +257,167 @@ jobs:
           prerelease: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  deploy:
+    name: Deploy to Cloudflare Pages
+    needs: [release]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install tools
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y reprepro createrepo-c gnupg2
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts/
+
+      - name: Import GPG key + trust
+        run: |
+          echo "${{ secrets.GPG_PRIVATE_KEY }}" | gpg --batch --import
+          FINGERPRINT=$(gpg --list-secret-keys --with-colons \
+            | grep '^fpr' | head -1 | cut -d: -f10)
+          echo "${FINGERPRINT}:6:" | gpg --import-ownertrust
+
+          mkdir -p ~/.gnupg
+          chmod 700 ~/.gnupg
+          echo "allow-loopback-pinentry" >> ~/.gnupg/gpg-agent.conf
+          gpg-connect-agent reloadagent /bye || true
+          echo "FINGERPRINT=${FINGERPRINT}" >> $GITHUB_ENV
+
+      - name: Create APT repo structure
+        run: |
+          mkdir -p repo/apt/conf
+          cat > repo/apt/conf/distributions << EOF
+          Codename: bookworm
+          Suite: stable
+          Components: main
+          Architectures: amd64 arm64
+          SignWith: ${{ env.FINGERPRINT }}
+
+          Codename: trixie
+          Suite: stable
+          Components: main
+          Architectures: amd64 arm64
+          SignWith: ${{ env.FINGERPRINT }}
+
+          Codename: testing
+          Suite: stable
+          Components: main
+          Architectures: amd64 arm64
+          SignWith: ${{ env.FINGERPRINT }}
+
+          Codename: sid
+          Suite: unstable
+          Components: main
+          Architectures: amd64 arm64
+          SignWith: ${{ env.FINGERPRINT }}
+
+          Codename: jammy
+          Suite: stable
+          Components: main
+          Architectures: amd64 arm64
+          SignWith: ${{ env.FINGERPRINT }}
+
+          Codename: noble
+          Suite: stable
+          Components: main
+          Architectures: amd64 arm64
+          SignWith: ${{ env.FINGERPRINT }}
+
+          Codename: plucky
+          Suite: stable
+          Components: main
+          Architectures: amd64 arm64
+          SignWith: ${{ env.FINGERPRINT }}
+
+          Codename: questing
+          Suite: stable
+          Components: main
+          Architectures: amd64 arm64
+          SignWith: ${{ env.FINGERPRINT }}
+          EOF
+
+      - name: Populate APT repo
+        env:
+          GNUPGHOME: /home/runner/.gnupg
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+        run: |
+          echo "$GPG_PASSPHRASE" | gpg --batch \
+            --pinentry-mode loopback \
+            --passphrase-fd 0 \
+            -u "$FINGERPRINT" \
+            --sign /dev/null -o /dev/null 2>/dev/null || true
+
+          for codename in bookworm trixie testing sid jammy noble plucky questing; do
+            for deb in artifacts/deb-${codename}/*.deb; do
+              [ -f "$deb" ] || continue
+              echo "Adding $deb → $codename"
+              reprepro \
+                --gnupghome "$GNUPGHOME" \
+                -b repo/apt \
+                includedeb "$codename" "$deb"
+            done
+          done
+
+      - name: Create Fedora RPM repos
+        env:
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+        run: |
+          for releasever in 42 43 rawhide; do
+            dir="repo/rpm/fedora/${releasever}/x86_64"
+            mkdir -p "$dir"
+            for rpm in artifacts/rpm-fedora-${releasever}/*.rpm; do
+              [ -f "$rpm" ] || continue
+              [[ "$rpm" == *debug* ]] && continue
+              cp "$rpm" "$dir/"
+            done
+            [ "$(ls -A $dir)" ] || continue
+            createrepo_c "$dir"
+            echo "$GPG_PASSPHRASE" | gpg --batch --yes \
+              --pinentry-mode loopback \
+              --passphrase-fd 0 \
+              --detach-sign --armor \
+              "$dir/repodata/repomd.xml"
+          done
+
+      - name: Create openSUSE RPM repo
+        env:
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+        run: |
+          dir="repo/rpm/opensuse/tumbleweed/x86_64"
+          mkdir -p "$dir"
+          for rpm in artifacts/rpm-opensuse-tumbleweed/*.rpm; do
+            [ -f "$rpm" ] || continue
+            [[ "$rpm" == *debug* ]] && continue
+            cp "$rpm" "$dir/"
+          done
+          [ "$(ls -A $dir)" ] || { echo "No RPMs found"; exit 0; }
+          createrepo_c "$dir"
+          echo "$GPG_PASSPHRASE" | gpg --batch --yes \
+            --pinentry-mode loopback \
+            --passphrase-fd 0 \
+            --detach-sign --armor \
+            "$dir/repodata/repomd.xml"
+
+      - name: Copy public key
+        run: cp packaging/pubkey.gpg repo/pubkey.gpg
+
+      - name: Deploy to Cloudflare Pages
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy repo --project-name=fcitx5-lotus --branch=main --commit-dirty=true
+
+      - name: Cleanup GPG
+        if: always()
+        run: |
+          gpg --batch --yes \
+            --delete-secret-and-public-key "${{ env.FINGERPRINT }}" || true
