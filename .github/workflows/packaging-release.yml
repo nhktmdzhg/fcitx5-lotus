@@ -117,14 +117,14 @@ jobs:
             done
 
       - name: Sign RPM packages
-        env:
-          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
         run: |
           sudo chmod -R 777 output/
           echo "${{ secrets.GPG_PRIVATE_KEY }}" | gpg --batch --import
 
           mkdir -p ~/.gnupg
-          echo "allow-loopback-pinentry" >> ~/.gnupg/gpg-agent.conf
+          chmod 700 ~/.gnupg
+          echo "allow-loopback-pinentry" > ~/.gnupg/gpg-agent.conf
+          echo "pinentry-mode loopback"  > ~/.gnupg/gpg.conf
           gpg-connect-agent reloadagent /bye || true
 
           KEYID=$(gpg --list-secret-keys --with-colons | grep '^sec' | head -1 | cut -d: -f5)
@@ -134,14 +134,13 @@ jobs:
           %__gpg_sign_cmd %{__gpg} gpg \
             --no-verbose --no-armor --batch \
             --pinentry-mode loopback \
-            --passphrase-fd 3 \
             -u "%{_gpg_name}" \
             -sbo %{__signature_filename} \
             %{__plaintext_filename}
           EOF
 
           for rpm in output/*.rpm; do
-            rpmsign --addsign "$rpm" 3< <(echo "$GPG_PASSPHRASE")
+            rpmsign --addsign "$rpm"
           done
 
           gpg --batch --yes --delete-secret-and-public-key "$KEYID" || true
@@ -197,14 +196,14 @@ jobs:
             done
 
       - name: Sign RPM packages
-        env:
-          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
         run: |
           sudo chmod -R 777 output/
           echo "${{ secrets.GPG_PRIVATE_KEY }}" | gpg --batch --import
 
           mkdir -p ~/.gnupg
-          echo "allow-loopback-pinentry" >> ~/.gnupg/gpg-agent.conf
+          chmod 700 ~/.gnupg
+          echo "allow-loopback-pinentry" > ~/.gnupg/gpg-agent.conf
+          echo "pinentry-mode loopback"  > ~/.gnupg/gpg.conf
           gpg-connect-agent reloadagent /bye || true
 
           KEYID=$(gpg --list-secret-keys --with-colons | grep '^sec' | head -1 | cut -d: -f5)
@@ -214,14 +213,13 @@ jobs:
           %__gpg_sign_cmd %{__gpg} gpg \
             --no-verbose --no-armor --batch \
             --pinentry-mode loopback \
-            --passphrase-fd 3 \
             -u "%{_gpg_name}" \
             -sbo %{__signature_filename} \
             %{__plaintext_filename}
           EOF
 
           for rpm in output/*.rpm; do
-            rpmsign --addsign "$rpm" 3< <(echo "$GPG_PASSPHRASE")
+            rpmsign --addsign "$rpm"
           done
 
           gpg --batch --yes --delete-secret-and-public-key "$KEYID" || true
@@ -279,28 +277,19 @@ jobs:
           path: artifacts/
 
       - name: Import GPG key + trust
-        env:
-          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
         run: |
           mkdir -p ~/.gnupg
           chmod 700 ~/.gnupg
-
           echo "allow-loopback-pinentry" > ~/.gnupg/gpg-agent.conf
           echo "pinentry-mode loopback"  > ~/.gnupg/gpg.conf
 
-          gpg --batch --import <<< "${{ secrets.GPG_PRIVATE_KEY }}"
+          echo "${{ secrets.GPG_PRIVATE_KEY }}" | gpg --batch --import
 
           FINGERPRINT=$(gpg --list-secret-keys --with-colons \
             | grep '^fpr' | head -1 | cut -d: -f10)
           echo "${FINGERPRINT}:6:" | gpg --import-ownertrust
 
           gpg-connect-agent reloadagent /bye
-
-          KEYGRIP=$(gpg --list-secret-keys --with-keygrip --with-colons \
-            | grep '^grp' | head -1 | cut -d: -f10)
-
-          echo "$GPG_PASSPHRASE" \
-            | /usr/lib/gnupg2/gpg-preset-passphrase --preset "$KEYGRIP"
 
           echo "FINGERPRINT=${FINGERPRINT}" >> $GITHUB_ENV
 
@@ -360,14 +349,7 @@ jobs:
       - name: Populate APT repo
         env:
           GNUPGHOME: /home/runner/.gnupg
-          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
         run: |
-          echo "$GPG_PASSPHRASE" | gpg --batch \
-            --pinentry-mode loopback \
-            --passphrase-fd 0 \
-            -u "$FINGERPRINT" \
-            --sign /dev/null -o /dev/null 2>/dev/null || true
-
           for codename in bookworm trixie testing sid jammy noble plucky questing; do
             for deb in artifacts/deb-${codename}/*.deb; do
               [ -f "$deb" ] || continue
@@ -380,8 +362,6 @@ jobs:
           done
 
       - name: Create Fedora RPM repos
-        env:
-          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
         run: |
           for releasever in 42 43 rawhide; do
             dir="repo/rpm/fedora/${releasever}/x86_64"
@@ -393,16 +373,12 @@ jobs:
             done
             [ "$(ls -A $dir)" ] || continue
             createrepo_c "$dir"
-            echo "$GPG_PASSPHRASE" | gpg --batch --yes \
-              --pinentry-mode loopback \
-              --passphrase-fd 0 \
+            gpg --batch --yes \
               --detach-sign --armor \
               "$dir/repodata/repomd.xml"
           done
 
       - name: Create openSUSE RPM repo
-        env:
-          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
         run: |
           dir="repo/rpm/opensuse/tumbleweed/x86_64"
           mkdir -p "$dir"
@@ -413,9 +389,7 @@ jobs:
           done
           [ "$(ls -A $dir)" ] || { echo "No RPMs found"; exit 0; }
           createrepo_c "$dir"
-          echo "$GPG_PASSPHRASE" | gpg --batch --yes \
-            --pinentry-mode loopback \
-            --passphrase-fd 0 \
+          gpg --batch --yes \
             --detach-sign --armor \
             "$dir/repodata/repomd.xml"
 
