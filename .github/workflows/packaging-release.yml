@@ -293,70 +293,26 @@ jobs:
 
           echo "FINGERPRINT=${FINGERPRINT}" >> $GITHUB_ENV
 
-      - name: Create APT repo structure
-        run: |
-          mkdir -p repo/apt/conf
-          cat > repo/apt/conf/distributions << EOF
-          Codename: bookworm
-          Suite: stable
-          Components: main
-          Architectures: amd64 arm64
-          SignWith: ${{ env.FINGERPRINT }}
-
-          Codename: trixie
-          Suite: stable
-          Components: main
-          Architectures: amd64 arm64
-          SignWith: ${{ env.FINGERPRINT }}
-
-          Codename: testing
-          Suite: stable
-          Components: main
-          Architectures: amd64 arm64
-          SignWith: ${{ env.FINGERPRINT }}
-
-          Codename: sid
-          Suite: unstable
-          Components: main
-          Architectures: amd64 arm64
-          SignWith: ${{ env.FINGERPRINT }}
-
-          Codename: jammy
-          Suite: stable
-          Components: main
-          Architectures: amd64 arm64
-          SignWith: ${{ env.FINGERPRINT }}
-
-          Codename: noble
-          Suite: stable
-          Components: main
-          Architectures: amd64 arm64
-          SignWith: ${{ env.FINGERPRINT }}
-
-          Codename: plucky
-          Suite: stable
-          Components: main
-          Architectures: amd64 arm64
-          SignWith: ${{ env.FINGERPRINT }}
-
-          Codename: questing
-          Suite: stable
-          Components: main
-          Architectures: amd64 arm64
-          SignWith: ${{ env.FINGERPRINT }}
-          EOF
-
-      - name: Populate APT repo
+      - name: Create and Populate APT repos
         env:
           GNUPGHOME: /home/runner/.gnupg
         run: |
           for codename in bookworm trixie testing sid jammy noble plucky questing; do
+            mkdir -p "repo/apt/${codename}/conf"
+            cat > "repo/apt/${codename}/conf/distributions" << EOF
+          Codename: ${codename}
+          Suite: stable
+          Components: main
+          Architectures: amd64
+          SignWith: ${{ env.FINGERPRINT }}
+          EOF
+
             for deb in artifacts/deb-${codename}/*.deb; do
               [ -f "$deb" ] || continue
-              echo "Adding $deb → $codename"
+              echo "Adding $deb → ${codename}"
               reprepro \
                 --gnupghome "$GNUPGHOME" \
-                -b repo/apt \
+                -b "repo/apt/${codename}" \
                 includedeb "$codename" "$deb"
             done
           done
