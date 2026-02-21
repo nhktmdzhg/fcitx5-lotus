@@ -420,6 +420,7 @@ namespace fcitx {
         statusArea.addAction(StatusGroup::InputMethod, modernStyleAction_.get());
         statusArea.addAction(StatusGroup::InputMethod, freeMarkingAction_.get());
         statusArea.addAction(StatusGroup::InputMethod, fixUinputWithAckAction_.get());
+        statusArea.addAction(StatusGroup::InputMethod, typingModeMenuAction_.get());
     }
 
     void LotusEngine::keyEvent(const InputMethodEntry& entry, KeyEvent& keyEvent) {
