@@ -1,31 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg width="48" height="48" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
-  <rect x="2" y="2" width="44" height="44" rx="10" ry="10" fill="#7B1A52"/>
-
-  <!-- Cánh ngoài trái -->
-  <path d="M 24,35 C 20,30 19,21 24,14 C 29,21 28,30 24,35"
-    fill="#FFFFFF" stroke="#7B1A52" stroke-width="1"
-    transform="rotate(-22, 24, 35)"/>
-
-  <!-- Cánh ngoài phải -->
-  <path d="M 24,35 C 20,30 19,21 24,14 C 29,21 28,30 24,35"
-    fill="#FFFFFF" stroke="#7B1A52" stroke-width="1"
-    transform="rotate(22, 24, 35)"/>
-
-  <!-- Cánh trong trái -->
-  <path d="M 24,35 C 20,30 19,21 24,14 C 29,21 28,30 24,35"
-    fill="#FFFFFF" stroke="#7B1A52" stroke-width="0.8"
-    transform="rotate(-10, 24, 35)"/>
-
-  <!-- Cánh trong phải -->
-  <path d="M 24,35 C 20,30 19,21 24,14 C 29,21 28,30 24,35"
-    fill="#FFFFFF" stroke="#7B1A52" stroke-width="0.8"
-    transform="rotate(10, 24, 35)"/>
-
-  <!-- Cánh giữa -->
-  <path d="M 24,35 C 20,30 19,21 24,14 C 29,21 28,30 24,35"
-    fill="#FFFFFF"/>
-
-  <!-- Dấu chấm -->
-  <circle cx="24" cy="33" r="2" fill="#FFFFFF"/>
+<svg height="16px" viewBox="0 0 16 16" width="16px" xmlns="http://www.w3.org/2000/svg">
+  <path d="M 13 2 L 3 2 L 3 14 L 13 14
+           M 3 8 L 11 8"
+        fill="none"
+        stroke="#2e3436"
+        stroke-width="2.2"
+        stroke-linecap="round"
+        stroke-linejoin="round"/>
 </svg>
