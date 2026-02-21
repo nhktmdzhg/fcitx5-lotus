@@ -298,10 +298,16 @@ jobs:
           GNUPGHOME: /home/runner/.gnupg
         run: |
           for codename in bookworm trixie testing sid jammy noble plucky questing; do
+            case "$codename" in
+              sid)      suite="unstable" ;;
+              testing)  suite="testing"  ;;
+              *)        suite="stable"   ;;
+            esac
+
             mkdir -p "repo/apt/${codename}/conf"
             cat > "repo/apt/${codename}/conf/distributions" << EOF
           Codename: ${codename}
-          Suite: stable
+          Suite: ${suite}
           Components: main
           Architectures: amd64
           SignWith: ${{ env.FINGERPRINT }}
