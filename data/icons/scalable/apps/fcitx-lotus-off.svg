@@ -2,7 +2,7 @@
 <svg width="48" height="48" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
   <rect x="2" y="2" width="44" height="44" rx="10" ry="10" fill="#7B1A52"/>
 
-  <g transform="translate(24,24) scale(1.2) translate(-24,-24)">
+  <g transform="translate(24,24) scale(1.15) translate(-24,-24)">
 
     <!-- Cánh ngoài trái -->
     <path d="M 24,35 C 20,30 19,21 24,14 C 29,21 28,30 24,35"

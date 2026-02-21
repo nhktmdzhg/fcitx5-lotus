@@ -3,7 +3,7 @@
   <rect x="2" y="2" width="44" height="44" rx="10" ry="10" fill="#C2185B"/>
 
   <!-- Phóng to hoa sen 1.2x, tâm xoay tại (24, 24) -->
-  <g transform="translate(24,24) scale(1.2) translate(-24,-24)">
+  <g transform="translate(24,24) scale(1.15) translate(-24,-24)">
 
     <!-- Cánh ngoài trái -->
     <path d="M 24,35 C 19,30 17,20 24,13 C 31,20 29,30 24,35"
