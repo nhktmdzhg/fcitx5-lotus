@@ -173,7 +173,7 @@ namespace fcitx {
             return false;
         }
 
-        if (textLen - 1 > static_cast<size_t>(cursor) && cursor == realtextLen)
+        if (textLen - 1 > static_cast<size_t>(cursor) && cursor == realtextLen && text.find('\n', cursor) == std::string::npos)
             return true;
 
         if (realtextLen < cursor)
