@@ -358,6 +358,11 @@ jobs:
       - name: Copy public key
         run: cp packaging/pubkey.gpg repo/pubkey.gpg
 
+      - name: Generate index pages
+        uses: gacts/directory-listing@v1
+        with:
+          dir: repo
+
       - name: Deploy to Cloudflare Pages
         uses: cloudflare/wrangler-action@v3
         with:
