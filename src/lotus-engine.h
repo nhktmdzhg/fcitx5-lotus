@@ -239,6 +239,8 @@ namespace fcitx {
          * @param ic Current input context.
          */
         void updateLotusIconsAction(InputContext* ic);
+
+        /**
          * @brief Updates the mode-menu action UI.
          * @param ic Current input context.
          */
