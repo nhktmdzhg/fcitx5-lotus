@@ -272,6 +272,16 @@ namespace fcitx {
             updateLotusIconsAction(ic);
         }));
         uiManager.registerAction("lotus-icons", lotusIconsAction_.get());
+        typingModeMenuAction_ = std::make_unique<SimpleAction>();
+        typingModeMenuAction_->setLongText(_("Open typing mode menu"));
+        typingModeMenuAction_->setIcon("input-keyboard");
+        typingModeMenuAction_->setCheckable(true);
+        connections_.emplace_back(typingModeMenuAction_->connect<SimpleAction::Activated>([this](InputContext* ic) {
+            config_.modeMenu.setValue(!*config_.modeMenu);
+            saveConfig();
+            updateTypingModeMenuAction(ic);
+        }));
+        uiManager.registerAction("lotus-modemenu", typingModeMenuAction_.get());
 
         reloadConfig();
         globalMode_ = modeStringToEnum(config_.mode.value());
@@ -342,6 +352,7 @@ namespace fcitx {
         updateFreeMarkingAction(nullptr);
         updateFixUinputWithAckAction(nullptr);
         updateLotusIconsAction(nullptr);
+        updateTypingModeMenuAction(nullptr);
     }
 
     void LotusEngine::setSubConfig(const std::string& path, const RawConfig& config) {
@@ -422,6 +433,7 @@ namespace fcitx {
         statusArea.addAction(StatusGroup::InputMethod, freeMarkingAction_.get());
         statusArea.addAction(StatusGroup::InputMethod, fixUinputWithAckAction_.get());
         statusArea.addAction(StatusGroup::InputMethod, lotusIconsAction_.get());
+        statusArea.addAction(StatusGroup::InputMethod, typingModeMenuAction_.get());
     }
 
     void LotusEngine::keyEvent(const InputMethodEntry& entry, KeyEvent& keyEvent) {
@@ -576,7 +588,7 @@ namespace fcitx {
             return;
         }
 
-        if (!keyEvent.isRelease() && keyEvent.rawKey().check(FcitxKey_grave)) {
+        if (!keyEvent.isRelease() && keyEvent.rawKey().check(FcitxKey_grave) && *config_.modeMenu) {
             currentConfigureApp_ = ic->program();
             if (currentConfigureApp_.empty())
                 currentConfigureApp_ = "unknown-app";
@@ -750,6 +762,11 @@ namespace fcitx {
         lotusIconsAction_->setShortText(*config_.useLotusIcons ? _("Lotus Icons: On") : _("Lotus Icons: Off"));
         if (ic) {
             lotusIconsAction_->update(ic);
+    void LotusEngine::updateTypingModeMenuAction(InputContext* ic) {
+        typingModeMenuAction_->setChecked(*config_.modeMenu);
+        typingModeMenuAction_->setShortText(*config_.modeMenu ? _("Typing Mode Menu: On") : _("Typing Mode Menu: Off"));
+        if (ic) {
+            typingModeMenuAction_->update(ic);
         }
     }
 

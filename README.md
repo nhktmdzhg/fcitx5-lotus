@@ -411,17 +411,17 @@ Sau khi đã log out và log in lại:
 3. Nhấn mũi tên **<** để thêm nó sang cột bên trái.
 4. Apply.
 
-   <details>
+<details>
    <summary><b>Cấu hình thêm cho Wayland (KDE, Hyprland)</b></summary>
-
+   
 - **KDE Plasma:** _System Settings_ → _Keyboard_ → _Virtual Keyboard_ → Chọn **Fcitx 5**.
 - **Hyprland:** Thêm dòng sau vào `~/.config/hypr/hyprland.conf`:
 
   ```ini
   permission = fcitx5-lotus-server, keyboard, allow
   ```
-
-  </details>
+  
+</details>
 
 ---
 
@@ -431,24 +431,25 @@ Sau khi đã log out và log in lại:
 
 ### 1. Tùy chỉnh bộ gõ
 
-- **Cách truy cập:** Nhấp chuột phải vào biểu tượng Lotus trên system tray để mở tuỳ chỉnh.
+- **Truy cập:** Nhấp chuột phải vào biểu tượng Lotus trên system tray để mở tuỳ chỉnh.
 
-| Tùy chọn                | Mô tả                                                                                                             | Mặc định        |
-| :---------------------- | :---------------------------------------------------------------------------------------------------------------- | :-------------- |
-| **Typing Mode**         | Chọn chế độ gõ.                                                                                                   | Uinput (Smooth) |
-| **Input Method**        | Chọn kiểu gõ.                                                                                                     | Telex           |
-| **Charset**             | Chọn bảng mã.                                                                                                     | Unicode         |
-| **Spell Check**         | Bật/tắt kiểm tra lỗi chính tả tiếng Việt.                                                                         | Bật             |
-| **Macro**               | Bật/tắt gõ tắt.                                                                                                   | Bật             |
-| **Capitalize Macro**    | Bật/tắt gõ tắt chữ hoa.                                                                                           | Bật             |
-| **Auto non-VN restore** | Bât/tắt tự động khôi phục với từ không phải tiếng Việt.                                                           | Bật             |
-| **Modern Style**        | Bật/tắt kiểu đặt dấu thanh hiện đại _(ví dụ: oà, *uý thay vì òa, *úy)_.                                           | Bật             |
-| **Free Marking**        | Bật/tắt bỏ dấu tự do.                                                                                             | Bật             |
-| **Fix Uinput with ack** | Bật/tắt sửa lỗi chế độ `uinput` với ack<br/>Nên bật khi sử dụng các ứng dụng Chromium (Chrome, Brave, Edge, ...). | Tắt             |
+| Tùy chọn                | Mô tả                                                                                                            | Mặc định        |
+| :---------------------- | :--------------------------------------------------------------------------------------------------------------- | :-------------- |
+| **Typing Mode**         | Chọn chế độ gõ.                                                                                                  | Uinput (Smooth) |
+| **Input Method**        | Chọn kiểu gõ.                                                                                                    | Telex           |
+| **Charset**             | Chọn bảng mã.                                                                                                    | Unicode         |
+| **Spell Check**         | Bật/tắt kiểm tra lỗi chính tả tiếng Việt.                                                                        | Bật             |
+| **Macro**               | Bật/tắt gõ tắt.                                                                                                  | Bật             |
+| **Capitalize Macro**    | Bật/tắt gõ tắt chữ hoa.                                                                                          | Bật             |
+| **Auto non-VN restore** | Bật/tắt tự động khôi phục với từ không phải tiếng Việt.                                                          | Bật             |
+| **Modern Style**        | Bật/tắt kiểu đặt dấu thanh hiện đại _(ví dụ: oà, *uý thay vì òa, *úy)_.                                          | Bật             |
+| **Free Marking**        | Bật/tắt bỏ dấu tự do.                                                                                            | Bật             |
+| **Fix Uinput with ack** | Bật/tắt sửa lỗi chế độ Uinput với ack.<br/>Nên bật khi sử dụng các ứng dụng Chromium (Chrome, Brave, Edge, ...). | Tắt             |
+| **Mode Menu**           | Bật/tắt mở menu chuyển chế độ gõ bằng phím **`** (tắt để nhập biểu tượng trực tiếp).                             | Bật             |
 
 ### 2. Menu chuyển chế độ gõ
 
-Khi đang ở trong bất kỳ ứng dụng nào, nhấn phím **`** để mở menu chọn chế độ gõ, có thể dùng chuột hoặc phím tắt để chọn.
+Khi con trỏ đang ở trong ô nhập liệu (có thể gõ văn bản), nhấn phím **`** để mở menu chọn chế độ gõ; bạn có thể dùng chuột hoặc phím tắt để chọn.
 
 | Chế độ                | Phím tắt | Mô tả                                                                                                                                |
 | :-------------------- | :------: | :----------------------------------------------------------------------------------------------------------------------------------- |
