@@ -73,6 +73,9 @@ Vietnamese input method for fcitx5
 %{_datadir}/icons/hicolor/scalable/apps/org.fcitx.Fcitx5.fcitx-lotus-off.svg
 %{_datadir}/icons/hicolor/scalable/apps/fcitx-lotus-emoji.svg
 %{_datadir}/icons/hicolor/scalable/apps/org.fcitx.Fcitx5.fcitx-lotus-emoji.svg
+%{_datadir}/icons/hicolor/scalable/apps/fcitx-lotus-emoji-default.svg
+%{_datadir}/icons/hicolor/scalable/apps/fcitx-lotus-default.svg
+%{_datadir}/icons/hicolor/scalable/apps/fcitx-lotus-off-default.svg
 %{_datadir}/metainfo/org.fcitx.Fcitx5.Addon.Lotus.metainfo.xml
 
 %clean
