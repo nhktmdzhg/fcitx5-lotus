@@ -95,6 +95,7 @@ jobs:
           image: ${{ matrix.distro }}
           options: -v ${{ github.workspace }}:/work
           run: |
+            set -euo pipefail
             dnf install -y \
               rpm-build rpmdevtools cmake extra-cmake-modules \
               gcc-c++ glibc-devel fcitx5-devel libinput-devel \
@@ -174,6 +175,7 @@ jobs:
           image: ${{ matrix.distro }}
           options: -v ${{ github.workspace }}:/work
           run: |
+            set -euo pipefail
             zypper install -y \
               rpm-build rpmdevtools cmake extra-cmake-modules \
               gcc-c++ glibc-devel fcitx5-devel libinput-devel \
@@ -359,9 +361,10 @@ jobs:
         run: cp packaging/pubkey.gpg repo/pubkey.gpg
 
       - name: Generate index pages
+        working-directory: repo
         uses: gacts/directory-listing@v1
         with:
-          dir: repo
+          dir: .
 
       - name: Deploy to Cloudflare Pages
         uses: cloudflare/wrangler-action@v3
