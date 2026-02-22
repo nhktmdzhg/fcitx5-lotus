@@ -261,6 +261,17 @@ namespace fcitx {
         }));
         uiManager.registerAction("lotus-fixuinputwithack", fixUinputWithAckAction_.get());
 
+        lotusIconsAction_ = std::make_unique<SimpleAction>();
+        lotusIconsAction_->setLongText(_("Use Lotus status icons"));
+        lotusIconsAction_->setIcon("emblem-default");
+        lotusIconsAction_->setCheckable(true);
+        connections_.emplace_back(lotusIconsAction_->connect<SimpleAction::Activated>([this](InputContext* ic) {
+            config_.useLotusIcons.setValue(!*config_.useLotusIcons);
+            saveConfig();
+            refreshOption();
+            updateLotusIconsAction(ic);
+        }));
+        uiManager.registerAction("lotus-icons", lotusIconsAction_.get());
         typingModeMenuAction_ = std::make_unique<SimpleAction>();
         typingModeMenuAction_->setLongText(_("Open typing mode menu"));
         typingModeMenuAction_->setIcon("input-keyboard");
@@ -340,6 +351,7 @@ namespace fcitx {
         updateModernStyleAction(nullptr);
         updateFreeMarkingAction(nullptr);
         updateFixUinputWithAckAction(nullptr);
+        updateLotusIconsAction(nullptr);
         updateTypingModeMenuAction(nullptr);
     }
 
@@ -420,6 +432,7 @@ namespace fcitx {
         statusArea.addAction(StatusGroup::InputMethod, modernStyleAction_.get());
         statusArea.addAction(StatusGroup::InputMethod, freeMarkingAction_.get());
         statusArea.addAction(StatusGroup::InputMethod, fixUinputWithAckAction_.get());
+        statusArea.addAction(StatusGroup::InputMethod, lotusIconsAction_.get());
         statusArea.addAction(StatusGroup::InputMethod, typingModeMenuAction_.get());
     }
 
@@ -744,6 +757,14 @@ namespace fcitx {
         }
     }
 
+    void LotusEngine::updateLotusIconsAction(InputContext* ic) {
+        lotusIconsAction_->setChecked(*config_.useLotusIcons);
+        lotusIconsAction_->setShortText(*config_.useLotusIcons ? _("Lotus Icons: On") : _("Lotus Icons: Off"));
+        if (ic) {
+            lotusIconsAction_->update(ic);
+        }
+    }
+
     void LotusEngine::updateTypingModeMenuAction(InputContext* ic) {
         typingModeMenuAction_->setChecked(*config_.modeMenu);
         typingModeMenuAction_->setShortText(*config_.modeMenu ? _("Typing Mode Menu: On") : _("Typing Mode Menu: Off"));
@@ -875,10 +896,17 @@ namespace fcitx {
     }
 
     std::string LotusEngine::overrideIcon(const InputMethodEntry& /*entry*/) {
+        if (!*config_.useLotusIcons) {
+            switch (realMode) {
+                case LotusMode::Off: return "fcitx-lotus-off-default";
+                case LotusMode::Emoji: return "fcitx-lotus-emoji-default";
+                default: return "fcitx-lotus-default";
+            }
+        }
         switch (realMode) {
             case LotusMode::Off: return "fcitx-lotus-off";
             case LotusMode::Emoji: return "fcitx-lotus-emoji";
-            default: return {};
+            default: return "fcitx-lotus";
         }
     }
 
