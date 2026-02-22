@@ -322,10 +322,11 @@ systemctl status fcitx5-lotus-server@$(whoami).service
 
 The input method will not work without these variables.
 
-- **Bash / Zsh:**
+<details open>
+<summary><b>Bash</b></summary>
 
 ```bash
-# This command will add the configuration to ~/.bash_profile, do the same for .zprofile
+# Add the configuration to ~/.bash_profile
 cat <<EOF >> ~/.bash_profile
 export GTK_IM_MODULE=fcitx
 export QT_IM_MODULE=fcitx
@@ -335,20 +336,39 @@ export GLFW_IM_MODULE=ibus
 EOF
 ```
 
-- **Fish shell:**
+</details>
+
+<details open>
+<summary><b>Zsh</b></summary>
+
+```bash
+# Add the configuration to ~/.zprofile
+cat <<EOF >> ~/.zprofile
+export GTK_IM_MODULE=fcitx
+export QT_IM_MODULE=fcitx
+export XMODIFIERS=@im=fcitx
+export SDL_IM_MODULE=fcitx
+export GLFW_IM_MODULE=ibus
+EOF
+```
+
+</details>
+
+<details>
+<summary><b>Fish shell</b></summary>
 
 ```fish
 # Add configuration to ~/.config/fish/config.fish
-cat >> ~/.config/fish/config.fish <<'EOF'
-
-# Input Method Configuration for Fcitx5
-set -Ux GTK_IM_MODULE fcitx
-set -Ux QT_IM_MODULE fcitx
-set -Ux XMODIFIERS "@im=fcitx"
-set -gx SDL_IM_MODULE fcitx
-set -gx GLFW_IM_MODULE ibus
-EOF
+echo 'if status is-login
+    set -Ux GTK_IM_MODULE fcitx
+    set -Ux QT_IM_MODULE fcitx
+    set -Ux XMODIFIERS "@im=fcitx"
+    set -gx SDL_IM_MODULE fcitx
+    set -gx GLFW_IM_MODULE ibus
+end' >> ~/.config/fish/config.fish
 ```
+
+</details>
 
 Log out and log in to apply changes.
 
@@ -356,7 +376,10 @@ Log out and log in to apply changes.
 <summary><b>If you still cannot type after logging out</b></summary>
 <br>
 
-If the configuration in `~/.bash_profile` or `~/.zprofile` doesn't work, you can try setting it in `/etc/environment` to apply to the entire system:
+If the configuration in `~/.bash_profile`, `~/.zprofile` or `.config/fish/config.fish` doesn't work, you can try setting it in `/etc/environment` to apply to the entire system:
+
+<details open>
+<summary><b>Bash/Zsh</b></summary>
 
 ```bash
 cat <<EOF | sudo tee -a /etc/environment
@@ -367,6 +390,21 @@ SDL_IM_MODULE=fcitx
 GLFW_IM_MODULE=ibus
 EOF
 ```
+
+</details>
+
+<details open>
+<summary><b>Fish shell</b></summary>
+
+```fish
+echo "GTK_IM_MODULE=fcitx
+QT_IM_MODULE=fcitx
+XMODIFIERS=@im=fcitx
+SDL_IM_MODULE=fcitx
+GLFW_IM_MODULE=ibus" | sudo tee -a /etc/environment
+```
+
+</details>
 
 > **Note:** A system restart is required after setup.
 
@@ -429,7 +467,7 @@ After logging out and logging in again:
 ### 1. Customize input method
 
 - **Access:** Right-click the Lotus icon on the system tray to open customization.
-- **Customization options:** _Typing Mode_, _Input Method_, _Charset_, _Spell Check_, _Macro_, _Capitalize Macro_, _Auto non-VN restore_, _Modern Style_, _Free Marking_, _Fix Uinput with ack_, _Mode menu_.
+- **Customization options:** _Typing Mode_, _Input Method_, _Charset_, _Spell Check_, _Macro_, _Capitalize Macro_, _Auto non-VN restore_, _Modern Style_, _Free Marking_, _Fix Uinput with ack_, _Lotus status icons_, _Mode menu_.
 
 ### 2. Typing mode menu
 

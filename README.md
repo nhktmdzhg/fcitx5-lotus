@@ -296,7 +296,8 @@ Sau khi cài đặt xong, bạn cần thực hiện các bước sau để bật
 
 Server giúp bộ gõ tương tác với hệ thống tốt hơn (đặc biệt là gửi phím xóa và sửa lỗi).
 
-- **Bash / Zsh:**
+<details open>
+<summary><b>Bash / Zsh</b></summary>
 
 ```bash
 # Bật và khởi động service (tự động fix lỗi thiếu user systemd nếu có)
@@ -304,7 +305,10 @@ sudo systemctl enable --now fcitx5-lotus-server@$(whoami).service || \
 (sudo systemd-sysusers && sudo systemctl enable --now fcitx5-lotus-server@$(whoami).service)
 ```
 
-- **Fish shell:**
+</details>
+
+<details open>
+<summary><b>Fish shell</b></summary>
 
 ```fish
 # Bật và khởi động service (tự động fix lỗi thiếu user systemd nếu có)
@@ -312,6 +316,8 @@ sudo systemctl enable --now fcitx5-lotus-server@(whoami).service; or begin
     sudo systemd-sysusers; and sudo systemctl enable --now fcitx5-lotus-server@(whoami).service
 end
 ```
+
+</details>
 
 ```bash
 # Kiểm tra status (nếu thấy active (running) màu xanh là OK)
@@ -322,10 +328,11 @@ systemctl status fcitx5-lotus-server@$(whoami).service
 
 Bộ gõ sẽ không hoạt động nếu thiếu các biến này.
 
-- **Bash / Zsh:**
+<details open>
+<summary><b>Bash</b></summary>
 
 ```bash
-# Thêm cấu hình vào ~/.bash_profile (với .zprofile làm tương tự)
+# Thêm cấu hình vào ~/.bash_profile
 cat <<EOF >> ~/.bash_profile
 export GTK_IM_MODULE=fcitx
 export QT_IM_MODULE=fcitx
@@ -335,20 +342,38 @@ export GLFW_IM_MODULE=ibus
 EOF
 ```
 
-- **Fish shell:**
+</details>
+
+<details open>
+<summary><b>Zsh</b></summary>
+
+```bash
+# Thêm cấu hình vào ~/.zprofile
+cat <<EOF >> ~/.zprofile
+export GTK_IM_MODULE=fcitx
+export QT_IM_MODULE=fcitx
+export XMODIFIERS=@im=fcitx
+export SDL_IM_MODULE=fcitx
+export GLFW_IM_MODULE=ibus
+EOF
+```
+
+</details>
+<details open>
+<summary><b>Fish shell</b></summary>
 
 ```fish
 # Thêm cấu hình vào ~/.config/fish/config.fish
-cat >> ~/.config/fish/config.fish <<'EOF'
-
-# Input Method Configuration for Fcitx5
-set -Ux GTK_IM_MODULE fcitx
-set -Ux QT_IM_MODULE fcitx
-set -Ux XMODIFIERS "@im=fcitx"
-set -gx SDL_IM_MODULE fcitx
-set -gx GLFW_IM_MODULE ibus
-EOF
+echo 'if status is-login
+    set -Ux GTK_IM_MODULE fcitx
+    set -Ux QT_IM_MODULE fcitx
+    set -Ux XMODIFIERS "@im=fcitx"
+    set -gx SDL_IM_MODULE fcitx
+    set -gx GLFW_IM_MODULE ibus
+end' >> ~/.config/fish/config.fish
 ```
+
+</details>
 
 Log out và log in để áp dụng thay đổi.
 
@@ -356,7 +381,10 @@ Log out và log in để áp dụng thay đổi.
 <summary><b>Nếu bạn vẫn chưa gõ được sau khi log out</b></summary>
 <br>
 
-Nếu cấu hình tại `~/.bash_profile` hoặc `~/.zprofile` không hoạt động, bạn có thể thử thiết lập tại `/etc/environment` để áp dụng cho toàn bộ hệ thống:
+Nếu cấu hình tại `~/.bash_profile`, `~/.zprofile` hay `.config/fish/config.fish` không hoạt động, bạn có thể thử thiết lập tại `/etc/environment` để áp dụng cho toàn bộ hệ thống:
+
+<details open>
+<summary><b>Bash/Zsh</b></summary>
 
 ```bash
 cat <<EOF | sudo tee -a /etc/environment
@@ -367,6 +395,21 @@ SDL_IM_MODULE=fcitx
 GLFW_IM_MODULE=ibus
 EOF
 ```
+
+</details>
+
+<details open>
+<summary><b>Fish shell</b></summary>
+
+```fish
+echo "GTK_IM_MODULE=fcitx
+QT_IM_MODULE=fcitx
+XMODIFIERS=@im=fcitx
+SDL_IM_MODULE=fcitx
+GLFW_IM_MODULE=ibus" | sudo tee -a /etc/environment
+```
+
+</details>
 
 > **Lưu ý:** Cần khởi động lại máy sau khi thiết lập.
 
@@ -417,10 +460,10 @@ Sau khi đã log out và log in lại:
 - **KDE Plasma:** _System Settings_ → _Keyboard_ → _Virtual Keyboard_ → Chọn **Fcitx 5**.
 - **Hyprland:** Thêm dòng sau vào `~/.config/hypr/hyprland.conf`:
 
-  ```ini
-  permission = fcitx5-lotus-server, keyboard, allow
-  ```
-  
+```ini
+permission = fcitx5-lotus-server, keyboard, allow
+```
+
 </details>
 
 ---
@@ -445,11 +488,12 @@ Sau khi đã log out và log in lại:
 | **Modern Style**        | Bật/tắt kiểu đặt dấu thanh hiện đại _(ví dụ: oà, *uý thay vì òa, *úy)_.                                          | Bật             |
 | **Free Marking**        | Bật/tắt bỏ dấu tự do.                                                                                            | Bật             |
 | **Fix Uinput with ack** | Bật/tắt sửa lỗi chế độ Uinput với ack.<br/>Nên bật khi sử dụng các ứng dụng Chromium (Chrome, Brave, Edge, ...). | Tắt             |
-| **Mode Menu**           | Bật/tắt mở menu chuyển chế độ gõ bằng phím **`** (tắt để nhập biểu tượng trực tiếp).                             | Bật             |
+| **Lotus Icons**         | Bật/tắt sử dụng icon Lotus thay vì icon mặc định V E.                                                            | Tắt             |
+| **Typing Mode Menu**    | Bật/tắt mở menu chuyển chế độ gõ bằng phím **`** (tắt để nhập ký tự trực tiếp).                                  | Bật             |
 
 ### 2. Menu chuyển chế độ gõ
 
-Khi con trỏ đang ở trong ô nhập liệu (có thể gõ văn bản), nhấn phím **`** để mở menu chọn chế độ gõ; bạn có thể dùng chuột hoặc phím tắt để chọn.
+Khi con trỏ đang ở trong ô nhập liệu (có thể gõ văn bản), nhấn phím **`** để mở menu chọn chế độ gõ; bạn có thể dùng chuột hoặc phím tắt để chọn chế độ mong muốn.
 
 | Chế độ                | Phím tắt | Mô tả                                                                                                                                |
 | :-------------------- | :------: | :----------------------------------------------------------------------------------------------------------------------------------- |
