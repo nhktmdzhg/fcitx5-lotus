@@ -359,15 +359,13 @@ EOF
 
 ```fish
 # Add configuration to ~/.config/fish/config.fish
-cat >> ~/.config/fish/config.fish <<'EOF'
-
-# Input Method Configuration for Fcitx5
-set -Ux GTK_IM_MODULE fcitx
-set -Ux QT_IM_MODULE fcitx
-set -Ux XMODIFIERS "@im=fcitx"
-set -gx SDL_IM_MODULE fcitx
-set -gx GLFW_IM_MODULE ibus
-EOF
+echo 'if status is-login
+    set -Ux GTK_IM_MODULE fcitx
+    set -Ux QT_IM_MODULE fcitx
+    set -Ux XMODIFIERS "@im=fcitx"
+    set -gx SDL_IM_MODULE fcitx
+    set -gx GLFW_IM_MODULE ibus
+end' >> ~/.config/fish/config.fish
 ```
 
 </details>
@@ -378,7 +376,10 @@ Log out and log in to apply changes.
 <summary><b>If you still cannot type after logging out</b></summary>
 <br>
 
-If the configuration in `~/.bash_profile` or `~/.zprofile` doesn't work, you can try setting it in `/etc/environment` to apply to the entire system:
+If the configuration in `~/.bash_profile`, `~/.zprofile` or `.config/fish/config.fish` doesn't work, you can try setting it in `/etc/environment` to apply to the entire system:
+
+<details open>
+<summary><b>Bash/Zsh</b></summary>
 
 ```bash
 cat <<EOF | sudo tee -a /etc/environment
@@ -389,6 +390,21 @@ SDL_IM_MODULE=fcitx
 GLFW_IM_MODULE=ibus
 EOF
 ```
+
+</details>
+
+<details open>
+<summary><b>Fish shell</b></summary>
+
+```fish
+echo "GTK_IM_MODULE=fcitx
+QT_IM_MODULE=fcitx
+XMODIFIERS=@im=fcitx
+SDL_IM_MODULE=fcitx
+GLFW_IM_MODULE=ibus" | sudo tee -a /etc/environment
+```
+
+</details>
 
 > **Note:** A system restart is required after setup.
 
@@ -432,15 +448,15 @@ After logging out and logging in again:
 2. Find **Lotus** in the right column.
 3. Click the **<** arrow to add it to the left column.
 4. Apply.
- <details>
- <summary><b>Additional configuration for Wayland (KDE, Hyprland)</b></summary>
+<details>
+<summary><b>Additional configuration for Wayland (KDE, Hyprland)</b></summary>
 
 - **KDE Plasma:** _System Settings_ → _Keyboard_ → _Virtual Keyboard_ → Select **Fcitx 5**.
 - **Hyprland:** Add the following line to `~/.config/hypr/hyprland.conf`:
-    ```ini
-    permission = fcitx5-lotus-server, keyboard, allow
-    ```
-        </details>
+  ```ini
+  permission = fcitx5-lotus-server, keyboard, allow
+  ```
+  </details>
 
 ---
 

@@ -364,15 +364,13 @@ EOF
 
 ```fish
 # Thêm cấu hình vào ~/.config/fish/config.fish
-cat >> ~/.config/fish/config.fish <<'EOF'
-
-# Input Method Configuration for Fcitx5
-set -Ux GTK_IM_MODULE fcitx
-set -Ux QT_IM_MODULE fcitx
-set -Ux XMODIFIERS "@im=fcitx"
-set -gx SDL_IM_MODULE fcitx
-set -gx GLFW_IM_MODULE ibus
-EOF
+echo 'if status is-login
+    set -Ux GTK_IM_MODULE fcitx
+    set -Ux QT_IM_MODULE fcitx
+    set -Ux XMODIFIERS "@im=fcitx"
+    set -gx SDL_IM_MODULE fcitx
+    set -gx GLFW_IM_MODULE ibus
+end' >> ~/.config/fish/config.fish
 ```
 
 </details>
@@ -383,7 +381,10 @@ Log out và log in để áp dụng thay đổi.
 <summary><b>Nếu bạn vẫn chưa gõ được sau khi log out</b></summary>
 <br>
 
-Nếu cấu hình tại `~/.bash_profile` hoặc `~/.zprofile` không hoạt động, bạn có thể thử thiết lập tại `/etc/environment` để áp dụng cho toàn bộ hệ thống:
+Nếu cấu hình tại `~/.bash_profile`, `~/.zprofile` hay `.config/fish/config.fish` không hoạt động, bạn có thể thử thiết lập tại `/etc/environment` để áp dụng cho toàn bộ hệ thống:
+
+<details open>
+<summary><b>Bash/Zsh</b></summary>
 
 ```bash
 cat <<EOF | sudo tee -a /etc/environment
@@ -394,6 +395,21 @@ SDL_IM_MODULE=fcitx
 GLFW_IM_MODULE=ibus
 EOF
 ```
+
+</details>
+
+<details open>
+<summary><b>Fish shell</b></summary>
+
+```fish
+echo "GTK_IM_MODULE=fcitx
+QT_IM_MODULE=fcitx
+XMODIFIERS=@im=fcitx
+SDL_IM_MODULE=fcitx
+GLFW_IM_MODULE=ibus" | sudo tee -a /etc/environment
+```
+
+</details>
 
 > **Lưu ý:** Cần khởi động lại máy sau khi thiết lập.
 
@@ -594,7 +610,7 @@ Cảm ơn những con người tuyệt vời ([chú thích emoji](https://allcon
   <tbody>
     <tr>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/nhktmdzhg"><img src="https://avatars.githubusercontent.com/u/57983253?v=4?s=100" width="100px;" alt="Nguyen Hoang Ky"/><br /><sub><b>Nguyen Hoang Ky</b></sub></a><br /><a href="#blog-nhktmdzhg" title="Blogposts">📝</a> <a href="https://github.com/LotusInputMethod/fcitx5-lotus/commits?author=nhktmdzhg" title="Code">💻</a> <a href="https://github.com/LotusInputMethod/fcitx5-lotus/commits?author=nhktmdzhg" title="Documentation">📖</a> <a href="#projectManagement-nhktmdzhg" title="Project Management">📆</a> <a href="https://github.com/LotusInputMethod/fcitx5-lotus/pulls?q=is%3Apr+reviewed-by%3Anhktmdzhg" title="Reviewed Pull Requests">👀</a></td>
-      <td align="center" valign="top" width="14.28%"><a href="https://github.com/hthienloc"><img src="https://avatars.githubusercontent.com/u/148019203?v=4?s=100" width="100px;" alt="Huỳnh Thiện Lộc"/><br /><sub><b>Huỳnh Thiện Lộc</b></sub></a><br /><a href="https://github.com/LotusInputMethod/fcitx5-lotus/issues?q=author%3Ahthienloc" title="Bug reports">🐛</a> <a href="https://github.com/LotusInputMethod/fcitx5-lotus/commits?author=hthienloc" title="Documentation">📖</a> <a href="#design-hthienloc" title="Design">🎨</a> <a href="#translation-hthienloc" title="Translation">🌍</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/hthienloc"><img src="https://avatars.githubusercontent.com/u/148019203?v=4?s=100" width="100px;" alt="Loc Huynh"/><br /><sub><b>Loc Huynh</b></sub></a><br /><a href="https://github.com/LotusInputMethod/fcitx5-lotus/issues?q=author%3Ahthienloc" title="Bug reports">🐛</a> <a href="https://github.com/LotusInputMethod/fcitx5-lotus/commits?author=hthienloc" title="Documentation">📖</a> <a href="#design-hthienloc" title="Design">🎨</a> <a href="#translation-hthienloc" title="Translation">🌍</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/justanoobcoder"><img src="https://avatars.githubusercontent.com/u/57614330?v=4?s=100" width="100px;" alt="Nguyễn Hồng Hiệp"/><br /><sub><b>Nguyễn Hồng Hiệp</b></sub></a><br /><a href="https://github.com/LotusInputMethod/fcitx5-lotus/commits?author=justanoobcoder" title="Documentation">📖</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/Miho1254"><img src="https://avatars.githubusercontent.com/u/83270073?v=4?s=100" width="100px;" alt="Đặng Quang Hiển"/><br /><sub><b>Đặng Quang Hiển</b></sub></a><br /><a href="https://github.com/LotusInputMethod/fcitx5-lotus/commits?author=Miho1254" title="Documentation">📖</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/Zebra2711"><img src="https://avatars.githubusercontent.com/u/89755535?v=4?s=100" width="100px;" alt="Zebra2711"/><br /><sub><b>Zebra2711</b></sub></a><br /><a href="https://github.com/LotusInputMethod/fcitx5-lotus/issues?q=author%3AZebra2711" title="Bug reports">🐛</a> <a href="https://github.com/LotusInputMethod/fcitx5-lotus/commits?author=Zebra2711" title="Code">💻</a></td>
