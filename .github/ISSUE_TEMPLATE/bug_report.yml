@@ -65,7 +65,7 @@ body:
         - AUR (fcitx5-lotus)
         - AUR (fcitx5-lotus-bin)
         - AUR (fcitx5-lotus-git)
-        - Open Build Service (OBS)
+        - Cloudflare Pages
         - NixOS
         - Tự build từ source
         - Khác

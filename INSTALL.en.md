@@ -1,12 +1,12 @@
 [English](INSTALL.en.md) | [Tiếng Việt](INSTALL.md)
 
-# Hướng dẫn cài đặt fcitx5-lotus trên các distro: Fedora, Debian, OpenSUSE, Ubuntu
+# Installation guide for fcitx5-lotus on distros: Fedora, Debian, OpenSUSE, Ubuntu
 
-# Hướng dẫn cài đặt fcitx5-lotus
+# Installation guide for fcitx5-lotus
 
 ## Debian / Ubuntu
 
-### Bước 1: Import GPG key
+### Step 1: Import GPG key
 
 ```bash
 sudo mkdir -p /etc/apt/keyrings
@@ -14,9 +14,9 @@ curl -fsSL https://fcitx5-lotus.pages.dev/pubkey.gpg \
   | sudo gpg --dearmor -o /etc/apt/keyrings/fcitx5-lotus.gpg
 ```
 
-### Bước 2: Thêm repository
+### Step 2: Add repository
 
-Thay `CODENAME` theo bảng bên dưới:
+Replace `CODENAME` according to the table below:
 
 ```bash
 echo "deb [signed-by=/etc/apt/keyrings/fcitx5-lotus.gpg] \
@@ -24,7 +24,7 @@ echo "deb [signed-by=/etc/apt/keyrings/fcitx5-lotus.gpg] \
   | sudo tee /etc/apt/sources.list.d/fcitx5-lotus.list
 ```
 
-| Hệ điều hành     | CODENAME   |
+| Operating System | CODENAME   |
 | ---------------- | ---------- |
 | Debian 12        | `bookworm` |
 | Debian 13        | `trixie`   |
@@ -35,7 +35,7 @@ echo "deb [signed-by=/etc/apt/keyrings/fcitx5-lotus.gpg] \
 | Ubuntu 25.04     | `plucky`   |
 | Ubuntu 25.10     | `questing` |
 
-Ví dụ với Debian 12:
+Example with Debian 12:
 
 ```bash
 echo "deb [signed-by=/etc/apt/keyrings/fcitx5-lotus.gpg] \
@@ -43,7 +43,7 @@ echo "deb [signed-by=/etc/apt/keyrings/fcitx5-lotus.gpg] \
   | sudo tee /etc/apt/sources.list.d/fcitx5-lotus.list
 ```
 
-### Bước 3: Cài đặt
+### Step 3: Installation
 
 ```bash
 sudo apt update
@@ -54,29 +54,29 @@ sudo apt install fcitx5-lotus
 
 ## Fedora
 
-### Bước 1: Import GPG key
+### Step 1: Import GPG key
 
 ```bash
 sudo rpm --import https://fcitx5-lotus.pages.dev/pubkey.gpg
 ```
 
-### Bước 2: Thêm repository
+### Step 2: Add repository
 
-Thay `RELEASEVER` bằng `42`, `43` hoặc `rawhide`:
+Replace `RELEASEVER` with `42`, `43` or `rawhide`:
 
 ```bash
 sudo dnf config-manager addrepo \
   --from-repofile=https://fcitx5-lotus.pages.dev/rpm/fedora/fcitx5-lotus-RELEASEVER.repo
 ```
 
-Ví dụ với Fedora 43:
+Example with Fedora 43:
 
 ```bash
 sudo dnf config-manager addrepo \
   --from-repofile=https://fcitx5-lotus.pages.dev/rpm/fedora/fcitx5-lotus-43.repo
 ```
 
-### Bước 3: Cài đặt
+### Step 3: Installation
 
 ```bash
 sudo dnf install fcitx5-lotus
@@ -86,13 +86,13 @@ sudo dnf install fcitx5-lotus
 
 ## openSUSE Tumbleweed
 
-### Bước 1: Import GPG key
+### Step 1: Import GPG key
 
 ```bash
 sudo rpm --import https://fcitx5-lotus.pages.dev/pubkey.gpg
 ```
 
-### Bước 2: Thêm repository
+### Step 2: Add repository
 
 ```bash
 sudo zypper addrepo \
@@ -100,7 +100,7 @@ sudo zypper addrepo \
 sudo zypper refresh
 ```
 
-### Bước 3: Cài đặt
+### Step 3: Installation
 
 ```bash
 sudo zypper install fcitx5-lotus
@@ -108,9 +108,9 @@ sudo zypper install fcitx5-lotus
 
 ---
 
-## Cài thủ công (không dùng repo)
+## Manual Installation (without repo)
 
-Tải file `.deb` hoặc `.rpm` trực tiếp từ [GitHub Releases](https://github.com/LotusInputMethod/fcitx5-lotus/releases/latest):
+Download `.deb` or `.rpm` files directly from [GitHub Releases](https://github.com/LotusInputMethod/fcitx5-lotus/releases/latest):
 
 ```bash
 # Debian/Ubuntu

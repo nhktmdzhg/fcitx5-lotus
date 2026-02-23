@@ -233,9 +233,53 @@ jobs:
           path: output/*.rpm
           retention-days: 1
 
+  build-arch:
+    name: Arch Linux (zip)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Build on Arch Linux
+        uses: addnab/docker-run-action@v3
+        with:
+          image: archlinux:latest
+          options: -v ${{ github.workspace }}:/work
+          run: |
+            set -euo pipefail
+            pacman -Syu --noconfirm
+            pacman -S --noconfirm \
+              cmake extra-cmake-modules gcc go \
+              fcitx5 libinput libx11 systemd \
+              make pkgconf zip
+
+            cd /work
+            cmake \
+              -DCMAKE_INSTALL_PREFIX=/usr \
+              -DCMAKE_INSTALL_LIBDIR=/usr/lib \
+              -DCMAKE_BUILD_TYPE=Release \
+              -B build .
+            cmake --build build
+            DESTDIR=/work/arch-dist cmake --install build
+
+      - name: Package as zip
+        run: |
+          VERSION=$(grep '^pkgver=' packaging/arch/PKGBUILD | cut -d= -f2)
+          cd arch-dist
+          zip -r "../fcitx5-lotus-${VERSION}-x86_64-archlinux.zip" .
+
+      - name: Upload Arch artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: arch-zip
+          path: fcitx5-lotus-*-x86_64-archlinux.zip
+          retention-days: 1
+
   release:
     name: Create GitHub Release
-    needs: [build-deb, build-rpm-fedora, build-rpm-opensuse]
+    needs: [build-deb, build-rpm-fedora, build-rpm-opensuse, build-arch]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -252,6 +296,7 @@ jobs:
           files: |
             artifacts/**/*.deb
             artifacts/**/*.rpm
+            artifacts/**/*.zip
           generate_release_notes: true
           draft: true
           prerelease: false
