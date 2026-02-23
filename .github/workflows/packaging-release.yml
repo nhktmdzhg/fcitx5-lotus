@@ -357,6 +357,28 @@ jobs:
             --detach-sign --armor \
             "$dir/repodata/repomd.xml"
 
+      - name: Generate .repo files for RPM
+        run: |
+          for releasever in 42 43 rawhide; do
+            cat > "repo/rpm/fedora/fcitx5-lotus-${releasever}.repo" << EOF
+          [fcitx5-lotus]
+          name=fcitx5-lotus — Fedora ${releasever}
+          baseurl=https://fcitx5-lotus.pages.dev/rpm/fedora/${releasever}/x86_64/
+          enabled=1
+          gpgcheck=1
+          gpgkey=https://fcitx5-lotus.pages.dev/pubkey.gpg
+          EOF
+          done
+
+          cat > "repo/rpm/opensuse/fcitx5-lotus-tumbleweed.repo" << 'EOF'
+          [fcitx5-lotus]
+          name=fcitx5-lotus — openSUSE Tumbleweed
+          baseurl=https://fcitx5-lotus.pages.dev/rpm/opensuse/tumbleweed/x86_64/
+          enabled=1
+          gpgcheck=1
+          gpgkey=https://fcitx5-lotus.pages.dev/pubkey.gpg
+          EOF
+
       - name: Copy public key
         run: cp packaging/pubkey.gpg repo/pubkey.gpg
 

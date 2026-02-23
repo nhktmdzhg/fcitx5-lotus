@@ -48,15 +48,6 @@ sudo apt update
 sudo apt install fcitx5-lotus
 ```
 
-### Gỡ cài đặt
-
-```bash
-sudo apt remove fcitx5-lotus
-sudo rm /etc/apt/sources.list.d/fcitx5-lotus.list
-sudo rm /etc/apt/keyrings/fcitx5-lotus.gpg
-sudo apt update
-```
-
 ---
 
 ## Fedora
@@ -71,31 +62,22 @@ sudo rpm --import https://fcitx5-lotus.pages.dev/pubkey.gpg
 
 Thay `RELEASEVER` bằng `42`, `43` hoặc `rawhide`:
 
-- Bash/Zsh:
-
 ```bash
 sudo dnf config-manager addrepo \
-  --from-repofile=https://fcitx5-lotus.pages.dev/rpm/fedora/RELEASEVER/x86_64/repodata/repomd.xml
+  --from-repofile=https://fcitx5-lotus.pages.dev/rpm/fedora/fcitx5-lotus-RELEASEVER.repo
 ```
 
 Ví dụ với Fedora 43:
 
 ```bash
-sudo dnf config-manager --add-repo \
-  --from-repofile=https://fcitx5-lotus.pages.dev/rpm/fedora/43/x86_64/repodata/repomd.xml
+sudo dnf config-manager addrepo \
+  --from-repofile=https://fcitx5-lotus.pages.dev/rpm/fedora/fcitx5-lotus-43.repo
 ```
 
 ### Bước 3: Cài đặt
 
 ```bash
 sudo dnf install fcitx5-lotus
-```
-
-### Gỡ cài đặt
-
-```bash
-sudo dnf remove fcitx5-lotus
-sudo rm /etc/yum.repos.d/fcitx5-lotus.repo
 ```
 
 ---
@@ -112,8 +94,7 @@ sudo rpm --import https://fcitx5-lotus.pages.dev/pubkey.gpg
 
 ```bash
 sudo zypper addrepo \
-  https://fcitx5-lotus.pages.dev/rpm/opensuse/tumbleweed/x86_64/ \
-  fcitx5-lotus
+  https://fcitx5-lotus.pages.dev/rpm/opensuse/fcitx5-lotus-tumbleweed.repo
 sudo zypper refresh
 ```
 
@@ -121,13 +102,6 @@ sudo zypper refresh
 
 ```bash
 sudo zypper install fcitx5-lotus
-```
-
-### Gỡ cài đặt
-
-```bash
-sudo zypper remove fcitx5-lotus
-sudo zypper removerepo fcitx5-lotus
 ```
 
 ---
