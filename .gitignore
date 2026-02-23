@@ -25,3 +25,4 @@ org.fcitx.Fcitx5.Addon.Lotus.metainfo.xml
 Makefile
 .vscode/
 compile_commands.json
+!.all-contributorsrc

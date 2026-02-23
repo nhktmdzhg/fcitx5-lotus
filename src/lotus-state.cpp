@@ -153,27 +153,37 @@ namespace fcitx {
             return false;
         }
 
-        int cursor = s.cursor();
-        int anchor = s.anchor();
+        int         cursor  = s.cursor();
+        int         anchor  = s.anchor();
+        const auto& text    = s.text();
+        size_t      textLen = fcitx_utf8_strlen(text.c_str());
 
+        // Detect browser autofill/autocomplete suggestions via selection.
         if (cursor != anchor) {
             int selectionStart = std::min(anchor, cursor);
             int selectionEnd   = std::max(anchor, cursor);
 
+            // Only consider it browser autofill if the selection starts at the cursor
+            // and extends to the end of the line (common address bar behavior).
             if (selectionStart >= cursor || (selectionStart < cursor && selectionEnd > cursor)) {
+                // If the selection contains a newline, it's likely a multiline editor (AI ghost text),
+                // not a single-line URL/Search bar.
+                size_t p = text.find('\n', selectionStart);
+                if (p != std::string::npos && p < static_cast<size_t>(selectionEnd)) {
+                    return false;
+                }
                 return true;
             }
         }
-
-        const auto& text    = s.text();
-        size_t      textLen = fcitx_utf8_strlen(text.c_str());
 
         if (textLen == static_cast<size_t>(cursor)) {
             realtextLen = textLen;
             return false;
         }
 
-        if (textLen - 1 > static_cast<size_t>(cursor) && cursor == realtextLen)
+        // Heuristic: rapid text growth in a single-line context.
+        // Applied only when no newline is present after the cursor to distinguish from AI text in editors.
+        if (textLen - 1 > static_cast<size_t>(cursor) && cursor == realtextLen && text.find('\n', cursor) == std::string::npos)
             return true;
 
         if (realtextLen < cursor)
@@ -436,7 +446,7 @@ namespace fcitx {
         if (isBackspace(currentSym)) {
             current_backspace_count_ += 1;
             if (current_backspace_count_ < expected_backspaces_) {
-                return false;
+                return false; // Allow intermediate backspaces to reach the app to clear autofill/old text.
             } else {
                 is_deleting_.store(false);
                 replacement_start_ms_.store(0, std::memory_order_release);
@@ -447,7 +457,7 @@ namespace fcitx {
                 current_backspace_count_ = -1;
                 pending_commit_string_   = "";
 
-                event.filterAndAccept();
+                event.filterAndAccept(); // Filter out the final trigger backspace.
                 return true;
             }
         }
@@ -459,7 +469,12 @@ namespace fcitx {
         current_backspace_count_ = 0;
         pending_commit_string_   = addedPart;
         const auto& surrounding  = ic_->surroundingText();
-        expected_backspaces_     = utf8::length(deletedPart) + 1 + (isAutofillCertain(surrounding) ? 1 : 0);
+        // Enable Autofill detection for all frontends (Wayland/IBus).
+        // This fixes the "toôi" duplication bug in Chromium-based search bars.
+        // The isAutofillCertain function has been optimized to differentiate
+        // between browser autofill and AI ghost text.
+        int autofillOffset   = isAutofillCertain(surrounding) ? 1 : 0;
+        expected_backspaces_ = utf8::length(deletedPart) + 1 + autofillOffset;
         replacement_thread_id_.store(my_id, std::memory_order_release);
         replacement_start_ms_.store(now_ms(), std::memory_order_release);
         is_deleting_.store(true, std::memory_order_release);

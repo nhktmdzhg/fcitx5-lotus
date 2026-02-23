@@ -1,0 +1,70 @@
+{
+  "projectName": "fcitx5-lotus",
+  "projectOwner": "LotusInputMethod",
+  "repoType": "github",
+  "repoHost": "https://github.com",
+  "files": [
+    "README.md",
+    "README.en.md"
+  ],
+  "imageSize": 100,
+  "commit": false,
+  "commitConvention": "gitmoji",
+  "contributors": [
+    {
+      "login": "nhktmdzhg",
+      "name": "Nguyen Hoang Ky",
+      "avatar_url": "https://avatars.githubusercontent.com/u/57983253?v=4",
+      "profile": "https://github.com/nhktmdzhg",
+      "contributions": [
+        "blog",
+        "code",
+        "doc",
+        "projectManagement",
+        "review"
+      ]
+    },
+    {
+      "login": "hthienloc",
+      "name": "Loc Huynh",
+      "avatar_url": "https://avatars.githubusercontent.com/u/148019203?v=4",
+      "profile": "https://github.com/hthienloc",
+      "contributions": [
+        "bug",
+        "doc",
+        "design",
+        "translation"
+      ]
+    },
+    {
+      "login": "justanoobcoder",
+      "name": "Nguyễn Hồng Hiệp",
+      "avatar_url": "https://avatars.githubusercontent.com/u/57614330?v=4",
+      "profile": "https://github.com/justanoobcoder",
+      "contributions": [
+        "doc"
+      ]
+    },
+    {
+      "login": "Miho1254",
+      "name": "Đặng Quang Hiển",
+      "avatar_url": "https://avatars.githubusercontent.com/u/83270073?v=4",
+      "profile": "https://github.com/Miho1254",
+      "contributions": [
+        "doc"
+      ]
+    },
+    {
+      "login": "Zebra2711",
+      "name": "Zebra2711",
+      "avatar_url": "https://avatars.githubusercontent.com/u/89755535?v=4",
+      "profile": "https://github.com/Zebra2711",
+      "contributions": [
+        "bug",
+        "code"
+      ]
+    }
+  ],
+  "contributorsPerLine": 7,
+  "linkToUsage": true
+}

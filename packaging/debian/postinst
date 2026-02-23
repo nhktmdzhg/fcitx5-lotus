@@ -1,0 +1,34 @@
+#!/bin/sh
+set -e
+
+blue='\033[1;34m'
+green='\033[1;32m'
+bold='\033[1;1m'
+all_off='\033[0m'
+
+if [ "$1" = "configure" ]; then
+    modprobe uinput || true
+    
+    # Reload udev
+    if command -v udevadm >/dev/null; then
+        udevadm control --reload-rules || true
+        udevadm trigger || true
+    fi
+    systemd-sysusers || true
+    
+    echo -e "${blue}--- Cấu hình Lotus ---${all_off}"
+    echo -e "${bold}Hướng dẫn sau cài đặt:${all_off}"
+    echo -e "1. Kích hoạt Server cho user của bạn:"
+    echo -e "   ${blue}sudo systemctl enable --now fcitx5-lotus-server@\$(whoami).service${all_off}"
+    echo ""
+    echo -e "2. Cấu hình Fcitx5:"
+    echo -e "   - Mở 'Fcitx5 Configuration', thêm bộ gõ ${green}Lotus${all_off}."
+    echo ""
+    echo -e "3. Lưu ý cho Wayland (KDE):"
+    echo -e "   - Hãy chọn 'Fcitx 5' trong phần Virtual Keyboard của hệ thống."
+    echo "------------------------------------------------"
+fi
+
+#DEBHELPER#
+
+exit 0

@@ -1,0 +1,22 @@
+Source: fcitx5-lotus
+Section: utils
+Priority: optional
+Maintainer: Nguyen Hoang Ky <nhktmdzhg@gmail.com>
+Build-Depends: debhelper (>= 13),
+               cmake,
+               g++,
+               golang,
+               extra-cmake-modules,
+               libfcitx5core-dev,
+               libfcitx5config-dev,
+               libfcitx5utils-dev,
+               libinput-dev,
+               libudev-dev,
+               pkg-config,
+               libx11-dev
+Standards-Version: 4.6.0
+
+Package: fcitx5-lotus
+Architecture: any
+Depends: fcitx5, udev, hicolor-icon-theme, ${misc:Depends}, ${shlibs:Depends}
+Description: Vietnamese input method for fcitx5

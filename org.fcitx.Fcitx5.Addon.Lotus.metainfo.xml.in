@@ -12,6 +12,6 @@
   <url type="bugtracker">https://github.com/LotusInputMethod/fcitx5-lotus/issues</url>
   <project_group>Fcitx</project_group>
   <releases>
-    <release version="1.0.0" date="2026-02-19" />
+    <release version="1.1.0" date="2026-02-23" />
   </releases>
 </component>

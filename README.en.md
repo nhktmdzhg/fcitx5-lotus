@@ -28,6 +28,9 @@
     <a href="https://github.com/LotusInputMethod/fcitx5-lotus/issues">
       <img src="https://img.shields.io/github/issues/LotusInputMethod/fcitx5-lotus?style=flat&color=red" alt="Issues">
     </a>
+    <a href="#contributors-">
+      <img src="https://img.shields.io/badge/all_contributors-5-orange.svg?style=flat-square" alt="All Contributors">
+    </a>
   </p>
 
   <p align="center">
@@ -72,7 +75,7 @@ This project is an optimized fork of [VMK input method](https://github.com/thanh
 > </details>
 >
 > <details>
-> <summary><b>Debian / Ubuntu / Fedora / openSUSE - Open Build Service</b></summary>
+> <summary><b>Debian / Ubuntu / Fedora / openSUSE</b></summary>
 > <br>
 >
 > - <b>Debian/Ubuntu</b>
@@ -172,17 +175,10 @@ paru -S fcitx5-lotus
 </details>
 
 <details>
-<summary><b>Debian / Ubuntu / Fedora / openSUSE - Open Build Service</b></summary>
+<summary><b>Debian / Ubuntu / Fedora / openSUSE</b></summary>
 <br>
 
-Visit the [Open Build Service](https://software.opensuse.org//download.html?project=home%3Aiamnanoka&package=fcitx5-lotus) page for detailed installation instructions for your distro.
-
-[![build result](https://build.opensuse.org/projects/home:iamnanoka/packages/fcitx5-lotus/badge.svg?type=percent)](https://build.opensuse.org/package/show/home:iamnanoka/fcitx5-lotus)
-[![build result](https://build.opensuse.org/projects/home:iamnanoka/packages/fcitx5-lotus/badge.svg?type=default)](https://build.opensuse.org/package/show/home:iamnanoka/fcitx5-lotus)
-
-Or you can see the installation method for each distro [here](INSTALL.md).
-
-> **Note:** Arch and Arch-based distros can also use this installation method.
+You can see the installation method for each distro [here](INSTALL.md).
 
 </details>
 
@@ -237,9 +233,9 @@ Rebuild the system to install.
 
 > **IMPORTANT RECOMMENDATION:**
 >
-> Please **DO NOT** use this method if your distro is already supported via **Open Build Service**.
+> Please **DO NOT** use this method if your distro is already supported via **Cloudflare Pages**.
 >
-> Manual compilation requires a good understanding of the system directory structure. If you encounter "Not Available" errors or missing libraries when installing this way on popular distros (Ubuntu/Fedora...), please return to using Open Build Service for stability and automatic updates.
+> Manual compilation requires a good understanding of the system directory structure. If you encounter "Not Available" errors or missing libraries when installing this way on popular distros (Ubuntu/Fedora...), please return to using Cloudflare Pages for stability and automatic updates.
 
 ##### System Requirements
 
@@ -293,10 +289,21 @@ After installation, you need to follow these steps to enable the fcitx5-lotus in
 
 The server helps the input method interact better with the system (especially sending backspace and fixing errors).
 
+- **Bash / Zsh:**
+
 ```bash
 # Enable and start the service (automatically fixes missing systemd user errors if any)
-sudo systemctl enable --now fcitx5-lotus-server@$(whoami).service ||
+sudo systemctl enable --now fcitx5-lotus-server@$(whoami).service || \
 (sudo systemd-sysusers && sudo systemctl enable --now fcitx5-lotus-server@$(whoami).service)
+```
+
+- **Fish shell:**
+
+```fish
+# Enable and start the service (automatically fixes missing systemd user errors if any)
+sudo systemctl enable --now fcitx5-lotus-server@(whoami).service; or begin
+    sudo systemd-sysusers; and sudo systemctl enable --now fcitx5-lotus-server@(whoami).service
+end
 ```
 
 ```bash
@@ -306,10 +313,13 @@ systemctl status fcitx5-lotus-server@$(whoami).service
 
 ### 2. Set Environment Variables
 
-The input method will not work without these variables. Run the command below to add them to your shell configuration file (`~/.bash_profile` or `~/.zprofile`):
+The input method will not work without these variables.
+
+<details open>
+<summary><b>Bash</b></summary>
 
 ```bash
-# This command will add the configuration to ~/.bash_profile, do the same for .zprofile
+# Add the configuration to ~/.bash_profile
 cat <<EOF >> ~/.bash_profile
 export GTK_IM_MODULE=fcitx
 export QT_IM_MODULE=fcitx
@@ -319,13 +329,50 @@ export GLFW_IM_MODULE=ibus
 EOF
 ```
 
+</details>
+
+<details open>
+<summary><b>Zsh</b></summary>
+
+```bash
+# Add the configuration to ~/.zprofile
+cat <<EOF >> ~/.zprofile
+export GTK_IM_MODULE=fcitx
+export QT_IM_MODULE=fcitx
+export XMODIFIERS=@im=fcitx
+export SDL_IM_MODULE=fcitx
+export GLFW_IM_MODULE=ibus
+EOF
+```
+
+</details>
+
+<details>
+<summary><b>Fish shell</b></summary>
+
+```fish
+# Add configuration to ~/.config/fish/config.fish
+echo 'if status is-login
+    set -Ux GTK_IM_MODULE fcitx
+    set -Ux QT_IM_MODULE fcitx
+    set -Ux XMODIFIERS "@im=fcitx"
+    set -gx SDL_IM_MODULE fcitx
+    set -gx GLFW_IM_MODULE ibus
+end' >> ~/.config/fish/config.fish
+```
+
+</details>
+
 Log out and log in to apply changes.
 
 <details>
 <summary><b>If you still cannot type after logging out</b></summary>
 <br>
 
-If the configuration in `~/.bash_profile` or `~/.zprofile` doesn't work, you can try setting it in `/etc/environment` to apply to the entire system:
+If the configuration in `~/.bash_profile`, `~/.zprofile` or `.config/fish/config.fish` doesn't work, you can try setting it in `/etc/environment` to apply to the entire system:
+
+<details open>
+<summary><b>Bash/Zsh</b></summary>
 
 ```bash
 cat <<EOF | sudo tee -a /etc/environment
@@ -336,6 +383,21 @@ SDL_IM_MODULE=fcitx
 GLFW_IM_MODULE=ibus
 EOF
 ```
+
+</details>
+
+<details open>
+<summary><b>Fish shell</b></summary>
+
+```fish
+echo "GTK_IM_MODULE=fcitx
+QT_IM_MODULE=fcitx
+XMODIFIERS=@im=fcitx
+SDL_IM_MODULE=fcitx
+GLFW_IM_MODULE=ibus" | sudo tee -a /etc/environment
+```
+
+</details>
 
 > **Note:** A system restart is required after setup.
 
@@ -393,16 +455,16 @@ After logging out and logging in again:
 
 <a id="usage-guide"></a>
 
-## 📖 Usage Guide
+## 📖 Usage guide
 
-### 1. Customize Input Method
+### 1. Customize input method
 
-- **How to access:** Right-click the Lotus icon on the system tray to open customization.
-- **Customization options:** _Typing Mode_, _Input Method_, _Charset_, _Spell Check_, _Macro_, _Capitalize Macro_, _Auto non-VN restore_, _Modern Style_, _Free Marking_, _Fix Uinput with ack_.
+- **Access:** Right-click the Lotus icon on the system tray to open customization.
+- **Customization options:** _Typing Mode_, _Input Method_, _Charset_, _Spell Check_, _Macro_, _Capitalize Macro_, _Auto non-VN restore_, _Modern Style_, _Free Marking_, _Fix Uinput with ack_, _Lotus status icons_, _Mode menu_.
 
-### 2. Typing Mode Menu
+### 2. Typing mode menu
 
-In any application, press the **`** key to open the typing mode selection menu, where you can use the mouse or shortcuts to select.
+In any application, press the **`** key to open the typing mode selection menu, where you can use the mouse or shortcuts to select. If the backtick shortcut interferes with your workflow (e.g. when writing Markdown code fences), you can turn it off in Lotus' settings using the **Mode menu** toggle.
 
 | Mode                  | Shortcut | Description                                                                                                                                         |
 | :-------------------- | :------: | :-------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -451,7 +513,7 @@ paru -Rns fcitx5-lotus
 </details>
 
 <details>
-<summary><b>Debian / Ubuntu / Fedora / openSUSE - Open Build Service</b></summary>
+<summary><b>Debian / Ubuntu / Fedora / openSUSE</b></summary>
 <br>
 
 - **Debian/Ubuntu**
@@ -506,12 +568,6 @@ Please see the detailed guide [here](CONTRIBUTING.en.md) for how to participate 
 
 Don't forget to give the project a ⭐! Thank you very much!
 
-### Contributors:
-
-<a href="https://github.com/LotusInputMethod/fcitx5-lotus/graphs/contributors">
-  <img src="https://contrib.rocks/image?repo=LotusInputMethod/fcitx5-lotus" alt="contrib.rocks image" />
-</a>
-
 ---
 
 <a id="license"></a>
@@ -522,10 +578,49 @@ The project is distributed under the GNU General Public License v3. See [`LICENS
 
 ---
 
+## Contributors ✨
+
+Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/docs/en/emoji-key)):
+
+<!-- ALL-CONTRIBUTORS-LIST:START - Do not remove or modify this section -->
+<!-- prettier-ignore-start -->
+<!-- markdownlint-disable -->
+<table>
+  <tbody>
+    <tr>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/nhktmdzhg"><img src="https://avatars.githubusercontent.com/u/57983253?v=4?s=100" width="100px;" alt="Nguyen Hoang Ky"/><br /><sub><b>Nguyen Hoang Ky</b></sub></a><br /><a href="#blog-nhktmdzhg" title="Blogposts">📝</a> <a href="https://github.com/LotusInputMethod/fcitx5-lotus/commits?author=nhktmdzhg" title="Code">💻</a> <a href="https://github.com/LotusInputMethod/fcitx5-lotus/commits?author=nhktmdzhg" title="Documentation">📖</a> <a href="#projectManagement-nhktmdzhg" title="Project Management">📆</a> <a href="https://github.com/LotusInputMethod/fcitx5-lotus/pulls?q=is%3Apr+reviewed-by%3Anhktmdzhg" title="Reviewed Pull Requests">👀</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/hthienloc"><img src="https://avatars.githubusercontent.com/u/148019203?v=4?s=100" width="100px;" alt="Loc Huynh"/><br /><sub><b>Loc Huynh</b></sub></a><br /><a href="https://github.com/LotusInputMethod/fcitx5-lotus/issues?q=author%3Ahthienloc" title="Bug reports">🐛</a> <a href="https://github.com/LotusInputMethod/fcitx5-lotus/commits?author=hthienloc" title="Documentation">📖</a> <a href="#design-hthienloc" title="Design">🎨</a> <a href="#translation-hthienloc" title="Translation">🌍</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/justanoobcoder"><img src="https://avatars.githubusercontent.com/u/57614330?v=4?s=100" width="100px;" alt="Nguyễn Hồng Hiệp"/><br /><sub><b>Nguyễn Hồng Hiệp</b></sub></a><br /><a href="https://github.com/LotusInputMethod/fcitx5-lotus/commits?author=justanoobcoder" title="Documentation">📖</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/Miho1254"><img src="https://avatars.githubusercontent.com/u/83270073?v=4?s=100" width="100px;" alt="Đặng Quang Hiển"/><br /><sub><b>Đặng Quang Hiển</b></sub></a><br /><a href="https://github.com/LotusInputMethod/fcitx5-lotus/commits?author=Miho1254" title="Documentation">📖</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/Zebra2711"><img src="https://avatars.githubusercontent.com/u/89755535?v=4?s=100" width="100px;" alt="Zebra2711"/><br /><sub><b>Zebra2711</b></sub></a><br /><a href="https://github.com/LotusInputMethod/fcitx5-lotus/issues?q=author%3AZebra2711" title="Bug reports">🐛</a> <a href="https://github.com/LotusInputMethod/fcitx5-lotus/commits?author=Zebra2711" title="Code">💻</a></td>
+    </tr>
+  </tbody>
+  <tfoot>
+    <tr>
+      <td align="center" size="13px" colspan="7">
+        <img src="https://raw.githubusercontent.com/all-contributors/all-contributors-cli/1b8533af435da9854653492b1327a23a4dbd0a10/assets/logo-small.svg">
+          <a href="https://all-contributors.js.org/docs/en/bot/usage">Add your contributions</a>
+        </img>
+      </td>
+    </tr>
+  </tfoot>
+</table>
+
+<!-- markdownlint-restore -->
+<!-- prettier-ignore-end -->
+
+<!-- ALL-CONTRIBUTORS-LIST:END -->
+
+This project follows the [all-contributors](https://github.com/all-contributors/all-contributors) specification. Contributions of any kind welcome!
+
+---
+
 ## ✨ Star History
 
 <a href="https://star-history.com/#LotusInputMethod/fcitx5-lotus&Date">
- <img src="https://api.star-history.com/svg?repos=LotusInputMethod/fcitx5-lotus&type=Date" alt="Star History Chart">
+ <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=LotusInputMethod/fcitx5-lotus&type=date&theme=dark&legend=top-left" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=LotusInputMethod/fcitx5-lotus&type=date&legend=top-left" />
+   <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=LotusInputMethod/fcitx5-lotus&type=date&legend=top-left" />
+ </picture>
 </a>
-
----

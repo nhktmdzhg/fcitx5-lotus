@@ -1,0 +1,210 @@
+name: Test Packaging Build
+
+on:
+  push:
+    branches:
+      - dev
+  pull_request:
+    branches:
+      - dev
+
+jobs:
+  build-deb:
+    name: DEB [${{ matrix.codename }}]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - distro: debian:12
+            codename: bookworm
+            parallel: 2
+          - distro: debian:13
+            codename: trixie
+            parallel: 4
+          - distro: debian:testing
+            codename: testing
+            parallel: 4
+          - distro: debian:unstable
+            codename: sid
+            parallel: 4
+          - distro: ubuntu:22.04
+            codename: jammy
+            parallel: 1
+          - distro: ubuntu:24.04
+            codename: noble
+            parallel: 2
+          - distro: ubuntu:25.04
+            codename: plucky
+            parallel: 4
+          - distro: ubuntu:25.10
+            codename: questing
+            parallel: 4
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Prepare debian directory
+        run: cp -r packaging/debian debian
+
+      - name: Build DEB
+        uses: jtdor/build-deb-action@v1
+        env:
+          DEB_BUILD_OPTIONS: parallel=${{ matrix.parallel }}
+        with:
+          docker-image: ${{ matrix.distro }}
+          buildpackage-opts: --build=binary --no-sign
+
+      - name: Upload DEB artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: deb-${{ matrix.codename }}
+          path: debian/artifacts/*.deb
+          retention-days: 3
+
+  build-rpm-fedora:
+    name: RPM [fedora-${{ matrix.releasever }}]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - distro: fedora:42
+            releasever: 42
+          - distro: fedora:43
+            releasever: 43
+          - distro: fedora:rawhide
+            releasever: rawhide
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Build Fedora RPM
+        uses: addnab/docker-run-action@v3
+        with:
+          image: ${{ matrix.distro }}
+          options: -v ${{ github.workspace }}:/work
+          run: |
+            set -euo pipefail
+            dnf install -y \
+              rpm-build rpmdevtools cmake extra-cmake-modules \
+              gcc-c++ glibc-devel fcitx5-devel libinput-devel \
+              systemd-rpm-macros libudev-devel libX11-devel \
+              golang libgudev-devel gettext-devel
+            rpmdev-setuptree
+            cp /work/packaging/rpm/fedora/fcitx5-lotus.spec ~/rpmbuild/SPECS/
+            mkdir -p ~/rpmbuild/SOURCES
+            cd /work
+            VERSION=$(grep '^Version:' packaging/rpm/fedora/fcitx5-lotus.spec | awk '{print $2}')
+            tar --exclude='.git' \
+                --exclude='packaging' \
+                --transform "s|^\.|fcitx5-lotus-${VERSION}|" \
+                -czf ~/rpmbuild/SOURCES/fcitx5-lotus-${VERSION}.tar.gz .
+            rpmbuild -bb ~/rpmbuild/SPECS/fcitx5-lotus.spec
+            mkdir -p /work/output
+            find ~/rpmbuild/RPMS -name '*.rpm' -exec cp {} /work/output/ \;
+
+      - name: Upload RPM artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: rpm-fedora-${{ matrix.releasever }}
+          path: output/*.rpm
+          retention-days: 3
+
+  build-rpm-opensuse:
+    name: RPM [opensuse-${{ matrix.releasever }}]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - distro: opensuse/tumbleweed
+            releasever: tumbleweed
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Build openSUSE RPM
+        uses: addnab/docker-run-action@v3
+        with:
+          image: ${{ matrix.distro }}
+          options: -v ${{ github.workspace }}:/work
+          run: |
+            set -euo pipefail
+            zypper install -y \
+              rpm-build rpmdevtools cmake extra-cmake-modules \
+              gcc-c++ glibc-devel fcitx5-devel libinput-devel \
+              systemd-rpm-macros libudev-devel libX11-devel \
+              go libgudev-1_0-devel sysuser-tools
+            rpmdev-setuptree
+            cp /work/packaging/rpm/opensuse/fcitx5-lotus.spec ~/rpmbuild/SPECS/
+            mkdir -p ~/rpmbuild/SOURCES
+            cd /work
+            VERSION=$(grep '^Version:' packaging/rpm/opensuse/fcitx5-lotus.spec | awk '{print $2}')
+            tar --exclude='.git' \
+                --exclude='packaging' \
+                --transform "s|^\.|fcitx5-lotus-${VERSION}|" \
+                -czf ~/rpmbuild/SOURCES/fcitx5-lotus-${VERSION}.tar.gz .
+            rpmbuild -bb ~/rpmbuild/SPECS/fcitx5-lotus.spec
+            mkdir -p /work/output
+            find ~/rpmbuild/RPMS -name '*.rpm' -exec cp {} /work/output/ \;
+
+      - name: Upload RPM artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: rpm-opensuse-${{ matrix.releasever }}
+          path: output/*.rpm
+          retention-days: 3
+  build-arch:
+    name: Arch Linux (zip)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Build on Arch Linux
+        uses: addnab/docker-run-action@v3
+        with:
+          image: archlinux:latest
+          options: -v ${{ github.workspace }}:/work
+          run: |
+            set -euo pipefail
+            pacman -Syu --noconfirm
+            pacman -S --noconfirm \
+              cmake extra-cmake-modules gcc go \
+              fcitx5 libinput libx11 systemd \
+              make pkgconf zip
+
+            cd /work
+            cmake \
+              -DCMAKE_INSTALL_PREFIX=/usr \
+              -DCMAKE_INSTALL_LIBDIR=/usr/lib \
+              -DCMAKE_BUILD_TYPE=Release \
+              -B build .
+            cmake --build build
+            DESTDIR=/work/arch-dist cmake --install build
+
+      - name: Package as zip
+        run: |
+          VERSION="${{ github.ref_name }}"
+          VERSION="${VERSION//\//-}"
+          cd arch-dist
+          zip -r "../fcitx5-lotus-${VERSION}-x86_64-archlinux.zip" .
+
+      - name: Upload Arch artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: arch-zip
+          path: fcitx5-lotus-*-x86_64-archlinux.zip
+          retention-days: 3
