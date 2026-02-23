@@ -385,7 +385,7 @@ jobs:
       - name: Generate index pages
         uses: gacts/directory-listing@v1
         with:
-          dir: repo
+          target: repo
 
       - name: Deploy to Cloudflare Pages
         uses: cloudflare/wrangler-action@v3
