@@ -55,6 +55,13 @@ jobs:
           docker-image: ${{ matrix.distro }}
           buildpackage-opts: --build=binary --no-sign
 
+      - name: Rename DEB artifacts
+        run: |
+          for f in debian/artifacts/*.deb; do
+            base=$(basename "$f" .deb)
+            sudo mv "$f" "debian/artifacts/${base}_${{ matrix.codename }}.deb"
+          done
+
       - name: Upload DEB artifact
         uses: actions/upload-artifact@v4
         with:
@@ -88,6 +95,7 @@ jobs:
           image: ${{ matrix.distro }}
           options: -v ${{ github.workspace }}:/work
           run: |
+            set -euo pipefail
             dnf install -y \
               rpm-build rpmdevtools cmake extra-cmake-modules \
               gcc-c++ glibc-devel fcitx5-devel libinput-devel \
@@ -104,23 +112,39 @@ jobs:
                 -czf ~/rpmbuild/SOURCES/fcitx5-lotus-${VERSION}.tar.gz .
             rpmbuild -bb ~/rpmbuild/SPECS/fcitx5-lotus.spec
             mkdir -p /work/output
-            find ~/rpmbuild/RPMS -name '*.rpm' -exec cp {} /work/output/ \;
+            for rpm in ~/rpmbuild/RPMS/**/*.rpm; do
+              base=$(basename "$rpm" .rpm)
+              mv "$rpm" "/work/output/${base}.${{ matrix.releasever }}.rpm"
+            done
 
-      - name: Write GPG key to file
+      - name: Sign RPM packages
         run: |
-          echo "${{ secrets.GPG_PRIVATE_KEY }}" > /tmp/gpg.key
+          sudo chmod -R 777 output/
+          echo "${{ secrets.GPG_PRIVATE_KEY }}" | gpg --batch --import
 
-      - name: Sign RPM
-        uses: signalwire/sign-rpm-packages-action@v1.0.0
-        with:
-          gpg_name: 'Nguyen Hoang Ky'
-          gpg_file: /tmp/gpg.key
-          rpm_path: output/
-          target_path: output/
+          mkdir -p ~/.gnupg
+          chmod 700 ~/.gnupg
+          echo "allow-loopback-pinentry" > ~/.gnupg/gpg-agent.conf
+          echo "pinentry-mode loopback"  > ~/.gnupg/gpg.conf
+          gpg-connect-agent reloadagent /bye || true
 
-      - name: Remove GPG key file
-        if: always()
-        run: rm -f /tmp/gpg.key
+          KEYID=$(gpg --list-secret-keys --with-colons | grep '^sec' | head -1 | cut -d: -f5)
+
+          cat > ~/.rpmmacros << EOF
+          %_gpg_name ${KEYID}
+          %__gpg_sign_cmd %{__gpg} gpg \
+            --no-verbose --no-armor --batch \
+            --pinentry-mode loopback \
+            -u "%{_gpg_name}" \
+            -sbo %{__signature_filename} \
+            %{__plaintext_filename}
+          EOF
+
+          for rpm in output/*.rpm; do
+            rpmsign --addsign "$rpm"
+          done
+
+          gpg --batch --yes --delete-secret-and-public-key "$KEYID" || true
 
       - name: Upload RPM artifact
         uses: actions/upload-artifact@v4
@@ -151,6 +175,7 @@ jobs:
           image: ${{ matrix.distro }}
           options: -v ${{ github.workspace }}:/work
           run: |
+            set -euo pipefail
             zypper install -y \
               rpm-build rpmdevtools cmake extra-cmake-modules \
               gcc-c++ glibc-devel fcitx5-devel libinput-devel \
@@ -167,23 +192,39 @@ jobs:
                 -czf ~/rpmbuild/SOURCES/fcitx5-lotus-${VERSION}.tar.gz .
             rpmbuild -bb ~/rpmbuild/SPECS/fcitx5-lotus.spec
             mkdir -p /work/output
-            find ~/rpmbuild/RPMS -name '*.rpm' -exec cp {} /work/output/ \;
+            for rpm in ~/rpmbuild/RPMS/**/*.rpm; do
+              base=$(basename "$rpm" .rpm)
+              mv "$rpm" "/work/output/${base}.${{ matrix.releasever }}.rpm"
+            done
 
-      - name: Write GPG key to file
+      - name: Sign RPM packages
         run: |
-          echo "${{ secrets.GPG_PRIVATE_KEY }}" > /tmp/gpg.key
+          sudo chmod -R 777 output/
+          echo "${{ secrets.GPG_PRIVATE_KEY }}" | gpg --batch --import
 
-      - name: Sign RPM
-        uses: signalwire/sign-rpm-packages-action@v1.0.0
-        with:
-          gpg_name: 'Nguyen Hoang Ky'
-          gpg_file: /tmp/gpg.key
-          rpm_path: output/
-          target_path: output/
+          mkdir -p ~/.gnupg
+          chmod 700 ~/.gnupg
+          echo "allow-loopback-pinentry" > ~/.gnupg/gpg-agent.conf
+          echo "pinentry-mode loopback"  > ~/.gnupg/gpg.conf
+          gpg-connect-agent reloadagent /bye || true
 
-      - name: Remove GPG key file
-        if: always()
-        run: rm -f /tmp/gpg.key
+          KEYID=$(gpg --list-secret-keys --with-colons | grep '^sec' | head -1 | cut -d: -f5)
+
+          cat > ~/.rpmmacros << EOF
+          %_gpg_name ${KEYID}
+          %__gpg_sign_cmd %{__gpg} gpg \
+            --no-verbose --no-armor --batch \
+            --pinentry-mode loopback \
+            -u "%{_gpg_name}" \
+            -sbo %{__signature_filename} \
+            %{__plaintext_filename}
+          EOF
+
+          for rpm in output/*.rpm; do
+            rpmsign --addsign "$rpm"
+          done
+
+          gpg --batch --yes --delete-secret-and-public-key "$KEYID" || true
 
       - name: Upload RPM artifact
         uses: actions/upload-artifact@v4
@@ -196,6 +237,8 @@ jobs:
     name: Create GitHub Release
     needs: [build-deb, build-rpm-fedora, build-rpm-opensuse]
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
 
     steps:
       - name: Download all artifacts
@@ -214,3 +257,145 @@ jobs:
           prerelease: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  deploy:
+    name: Deploy to Cloudflare Pages
+    needs: [release]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install tools
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y reprepro createrepo-c gnupg2
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts/
+
+      - name: Import GPG key + trust
+        run: |
+          mkdir -p ~/.gnupg
+          chmod 700 ~/.gnupg
+          echo "allow-loopback-pinentry" > ~/.gnupg/gpg-agent.conf
+          echo "pinentry-mode loopback"  > ~/.gnupg/gpg.conf
+
+          echo "${{ secrets.GPG_PRIVATE_KEY }}" | gpg --batch --import
+
+          FINGERPRINT=$(gpg --list-secret-keys --with-colons \
+            | grep '^fpr' | head -1 | cut -d: -f10)
+          echo "${FINGERPRINT}:6:" | gpg --import-ownertrust
+
+          gpg-connect-agent reloadagent /bye
+
+          echo "FINGERPRINT=${FINGERPRINT}" >> $GITHUB_ENV
+
+      - name: Create and Populate APT repos
+        env:
+          GNUPGHOME: /home/runner/.gnupg
+        run: |
+          for codename in bookworm trixie testing sid jammy noble plucky questing; do
+            case "$codename" in
+              sid)      suite="unstable" ;;
+              testing)  suite="testing"  ;;
+              *)        suite="stable"   ;;
+            esac
+
+            mkdir -p "repo/apt/${codename}/conf"
+            cat > "repo/apt/${codename}/conf/distributions" << EOF
+          Codename: ${codename}
+          Suite: ${suite}
+          Components: main
+          Architectures: amd64
+          SignWith: ${{ env.FINGERPRINT }}
+          EOF
+
+            for deb in artifacts/deb-${codename}/*.deb; do
+              [ -f "$deb" ] || continue
+              echo "Adding $deb → ${codename}"
+              reprepro \
+                --gnupghome "$GNUPGHOME" \
+                -b "repo/apt/${codename}" \
+                includedeb "$codename" "$deb"
+            done
+          done
+
+      - name: Create Fedora RPM repos
+        run: |
+          for releasever in 42 43 rawhide; do
+            dir="repo/rpm/fedora/${releasever}/x86_64"
+            mkdir -p "$dir"
+            for rpm in artifacts/rpm-fedora-${releasever}/*.rpm; do
+              [ -f "$rpm" ] || continue
+              [[ "$rpm" == *debug* ]] && continue
+              cp "$rpm" "$dir/"
+            done
+            [ "$(ls -A $dir)" ] || continue
+            createrepo_c "$dir"
+            gpg --batch --yes \
+              --detach-sign --armor \
+              "$dir/repodata/repomd.xml"
+          done
+
+      - name: Create openSUSE RPM repo
+        run: |
+          dir="repo/rpm/opensuse/tumbleweed/x86_64"
+          mkdir -p "$dir"
+          for rpm in artifacts/rpm-opensuse-tumbleweed/*.rpm; do
+            [ -f "$rpm" ] || continue
+            [[ "$rpm" == *debug* ]] && continue
+            cp "$rpm" "$dir/"
+          done
+          [ "$(ls -A $dir)" ] || { echo "No RPMs found"; exit 0; }
+          createrepo_c "$dir"
+          gpg --batch --yes \
+            --detach-sign --armor \
+            "$dir/repodata/repomd.xml"
+
+      - name: Generate .repo files for RPM
+        run: |
+          for releasever in 42 43 rawhide; do
+            cat > "repo/rpm/fedora/fcitx5-lotus-${releasever}.repo" << EOF
+          [fcitx5-lotus]
+          name=fcitx5-lotus — Fedora ${releasever}
+          baseurl=https://fcitx5-lotus.pages.dev/rpm/fedora/${releasever}/x86_64/
+          enabled=1
+          gpgcheck=1
+          gpgkey=https://fcitx5-lotus.pages.dev/pubkey.gpg
+          EOF
+          done
+
+          cat > "repo/rpm/opensuse/fcitx5-lotus-tumbleweed.repo" << 'EOF'
+          [fcitx5-lotus]
+          name=fcitx5-lotus — openSUSE Tumbleweed
+          baseurl=https://fcitx5-lotus.pages.dev/rpm/opensuse/tumbleweed/x86_64/
+          enabled=1
+          gpgcheck=1
+          gpgkey=https://fcitx5-lotus.pages.dev/pubkey.gpg
+          EOF
+
+      - name: Copy public key
+        run: cp packaging/pubkey.gpg repo/pubkey.gpg
+
+      - name: Generate index pages
+        uses: gacts/directory-listing@v1
+        with:
+          target: repo
+
+      - name: Deploy to Cloudflare Pages
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy repo --project-name=fcitx5-lotus --branch=main --commit-dirty=true
+
+      - name: Cleanup GPG
+        if: always()
+        run: |
+          gpg --batch --yes \
+            --delete-secret-and-public-key "${{ env.FINGERPRINT }}" || true
