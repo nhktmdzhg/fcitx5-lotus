@@ -446,10 +446,27 @@ After logging out and logging in again:
 
 - **KDE Plasma:** _System Settings_ → _Keyboard_ → _Virtual Keyboard_ → Select **Fcitx 5**.
 - **Hyprland:** Add the following line to `~/.config/hypr/hyprland.conf`:
+
   ```ini
   permission = fcitx5-lotus-server, keyboard, allow
   ```
+
   </details>
+
+  <details>
+   <summary><b>Additional configurattion for Kanata</b></summary>
+
+Add this line to file `~/.config/kanata/kanata.kbd`
+
+```
+(defcfg
+  ...
+  linux-dev-names-exclude ("Lotus-Uinput-Server")
+  ...
+)
+```
+
+</details>
 
 ---
 

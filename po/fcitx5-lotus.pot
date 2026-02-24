@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-02-23 19:39+0700\n"
+"POT-Creation-Date: 2026-02-24 09:54+0700\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -79,10 +79,6 @@ msgstr ""
 
 #: src/lotus-config.h:211
 msgid "Open typing mode menu with ` key"
-msgstr ""
-
-#: src/lotus-state.cpp:225
-msgid "Page "
 msgstr ""
 
 #: src/lotus-engine.cpp:100
@@ -211,4 +207,8 @@ msgstr ""
 
 #: src/lotus-engine.cpp:878
 msgid "[`] Type `"
+msgstr ""
+
+#: src/lotus-state.cpp:243
+msgid "Page "
 msgstr ""

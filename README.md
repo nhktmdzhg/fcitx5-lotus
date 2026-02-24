@@ -459,6 +459,21 @@ permission = fcitx5-lotus-server, keyboard, allow
 
 </details>
 
+<details>
+   <summary><b>Cấu hình thêm cho Kanata</b></summary>
+
+Thêm dòng sau vào file `~/.config/kanata/kanata.kbd`
+
+```
+(defcfg
+  ...
+  linux-dev-names-exclude ("Lotus-Uinput-Server")
+  ...
+)
+```
+
+</details>
+
 ---
 
 <a id="hướng-dẫn-sử-dụng"></a>

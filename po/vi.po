@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: fcitx5-lotus\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-02-23 19:39+0700\n"
+"POT-Creation-Date: 2026-02-24 09:54+0700\n"
 "PO-Revision-Date: 2026-02-23 11:25+0700\n"
 "Last-Translator: Automatically generated\n"
 "Language-Team: none\n"
@@ -81,10 +81,6 @@ msgstr "Sử dụng biểu tượng trạng thái Lotus"
 #: src/lotus-config.h:211
 msgid "Open typing mode menu with ` key"
 msgstr "Mở menu chế độ gõ với phím `"
-
-#: src/lotus-state.cpp:225
-msgid "Page "
-msgstr "Trang "
 
 #: src/lotus-engine.cpp:100
 msgid "Typing Mode"
@@ -213,3 +209,7 @@ msgstr "[R] Chế độ gõ mặc định"
 #: src/lotus-engine.cpp:878
 msgid "[`] Type `"
 msgstr "[`] Gõ `"
+
+#: src/lotus-state.cpp:243
+msgid "Page "
+msgstr "Trang "
