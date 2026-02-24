@@ -448,7 +448,7 @@ Sau khi đã log out và log in lại:
 4. Apply.
 
 <details>
-   <summary><b>Cấu hình thêm cho Wayland (KDE, Hyprland)</b></summary>
+  <summary><b>Cấu hình thêm cho Wayland (KDE, Hyprland, Chromium-based, Electron)</b></summary>
    
 - **KDE Plasma:** _System Settings_ → _Keyboard_ → _Virtual Keyboard_ → Chọn **Fcitx 5**.
 - **Hyprland:** Thêm dòng sau vào `~/.config/hypr/hyprland.conf`:
@@ -456,6 +456,9 @@ Sau khi đã log out và log in lại:
 ```ini
 permission = fcitx5-lotus-server, keyboard, allow
 ```
+
+- **Chromium-based/Electron:** Thêm flags sau vào ứng dụng cần chạy:
+  `--enable-features=UseOzonePlatform --ozone-platform=wayland --enable-wayland-ime --wayland-text-input-version=3`
 
 </details>
 

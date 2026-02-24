@@ -442,19 +442,22 @@ After logging out and logging in again:
 3. Click the **<** arrow to add it to the left column.
 4. Apply.
 <details>
-<summary><b>Additional configuration for Wayland (KDE, Hyprland)</b></summary>
+  <summary><b>Additional configuration for Wayland (KDE, Hyprland Chromium-based, Electron)</b></summary>
 
 - **KDE Plasma:** _System Settings_ → _Keyboard_ → _Virtual Keyboard_ → Select **Fcitx 5**.
 - **Hyprland:** Add the following line to `~/.config/hypr/hyprland.conf`:
 
-  ```ini
-  permission = fcitx5-lotus-server, keyboard, allow
-  ```
+```ini
+permission = fcitx5-lotus-server, keyboard, allow
+```
 
-  </details>
+- **Chromium-based/Electron:** Add the following flags to the application to be run:
+  `--enable-features=UseOzonePlatform --ozone-platform=wayland --enable-wayland-ime --wayland-text-input-version=3`
 
-  <details>
-   <summary><b>Additional configurattion for Kanata</b></summary>
+</details>
+
+<details>
+  <summary><b>Additional configurattion for Kanata</b></summary>
 
 Add this line to file `~/.config/kanata/kanata.kbd`
 

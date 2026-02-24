@@ -2,6 +2,48 @@
 
 # Installation guide for fcitx5-lotus on distros: Fedora, Debian, OpenSUSE, Ubuntu
 
+# How to remove OBS repository (if fcitx5-lotus was previously installed via OBS)
+
+## Arch Linux
+
+### Step 1: Remove the repository
+
+Open `/etc/pacman.conf` and delete the following lines:
+
+```ini
+[home_iamnanoka_Arch]
+Server = https://download.opensuse.org/repositories/home:/iamnanoka/Arch/$arch
+```
+
+### Step 2: Remove the key
+
+```bash
+sudo pacman-key --finger | grep "home:iamnanoka" -B 1 # To view the key ID
+sudo pacman-key --delete "ID_OF_KEY" # Replace ID_OF_KEY with the ID above (fingerprint, 40 characters long)
+sudo pacman-key --updatedb
+sudo pacman -Syy
+```
+
+## Debian / Ubuntu
+
+```bash
+sudo rm -f /etc/apt/sources.list.d/home:iamnanoka.list
+sudo rm -f /etc/apt/trusted.gpg.d/home_iamnanoka.gpg
+sudo apt update
+```
+
+## Fedora
+
+```bash
+sudo rm /etc/yum.repos.d/home:iamnanoka.repo
+```
+
+## openSUSE
+
+```bash
+sudo zypper removerepo home_iamnanoka
+```
+
 # Installation guide for fcitx5-lotus
 
 ## Debian / Ubuntu

@@ -2,6 +2,48 @@
 
 # Hướng dẫn cài đặt fcitx5-lotus trên các distro: Fedora, Debian, OpenSUSE, Ubuntu
 
+# Hướng dẫn gỡ repo của OBS (nếu đã cài fcitx5-lotus qua OBS trước đây)
+
+## Arch Linux
+
+### Bước 1: Xoá repo:
+
+Mở file `/etc/pacman.conf` và xoá các dòng sau:
+
+```ini
+[home_iamnanoka_Arch]
+Server = https://download.opensuse.org/repositories/home:/iamnanoka/Arch/$arch
+```
+
+### Bước 2: Xoá key:
+
+```bash
+sudo pacman-key --finger | grep "home:iamnanoka" -B 1 # Để xem ID
+sudo pacman-key --delete "ID_OF_KEY" # Thay ID_OF_KEY bằng ID trên (ID là fingerprint, dài 40 ký tự)
+sudo pacman-key --updatedb
+sudo pacman -Syy
+```
+
+## Debian / Ubuntu:
+
+```bash
+sudo rm -f /etc/apt/sources.list.d/home:iamnanoka.list
+sudo rm -f /etc/apt/trusted.gpg.d/home_iamnanoka.gpg
+sudo apt update
+```
+
+## Fedora:
+
+```bash
+sudo rm /etc/yum.repos.d/home:iamnanoka.repo
+```
+
+## openSUSE:
+
+```bash
+sudo zypper removerepo home_iamnanoka
+```
+
 # Hướng dẫn cài đặt fcitx5-lotus
 
 ## Debian / Ubuntu
