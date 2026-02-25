@@ -554,15 +554,6 @@ namespace fcitx {
                     selectionMade = true;
                     break;
                 }
-                case FcitxKey_grave: {
-                    isSelectingAppMode_ = false;
-                    ic->inputPanel().reset();
-                    ic->updateUserInterface(UserInterfaceComponent::InputPanel);
-                    auto state = ic->propertyFor(&factory_);
-                    state->reset();
-                    ic->commitString("`");
-                    return;
-                }
                 default: break;
             }
 
@@ -853,11 +844,6 @@ namespace fcitx {
             }
             setMode(globalMode_, ic);
             cleanup(ic);
-        }));
-
-        candidateList->append(std::make_unique<AppModeCandidateWord>(Text(_("[`] Type `")), [cleanup](InputContext* ic) {
-            cleanup(ic);
-            ic->commitString("`");
         }));
 
         int selectedIndex = 1;
