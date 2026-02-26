@@ -115,9 +115,9 @@ namespace fcitx::lotus {
         QString                     presetName = comboPreset_->currentText();
 
         QMessageBox::StandardButton reply;
-        reply = QMessageBox::question(this, _("Confirm"),
-                                      _("This operation will delete all existing keys on the keyboard and replace them with the input method ") + presetName + _(". Are you sure?"),
-                                      QMessageBox::Yes | QMessageBox::No);
+        reply = QMessageBox::question(
+            this, _("Confirm"), _("This operation will delete all existing keys on the current keymap and replace them with the input method ") + presetName + _(". Are you sure?"),
+            QMessageBox::Yes | QMessageBox::No);
 
         if (reply == QMessageBox::No) {
             return;
