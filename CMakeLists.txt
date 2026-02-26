@@ -4,19 +4,18 @@ project(fcitx5-lotus VERSION 1.1.0)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 set(REQUIRED_FCITX_VERSION 5.0.5)
-set(QT_MAJOR_VERSION 6)
 find_package(ECM 1.0.0 REQUIRED)
 set(CMAKE_MODULE_PATH ${ECM_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake" ${CMAKE_MODULE_PATH})
 include(FeatureSummary)
 include(GNUInstallDirs)
 include(ECMUninstallTarget)
 
+option(ENABLE_QT "Enable Qt based keymap editor" On)
+
 find_package(Fcitx5Core ${REQUIRED_FCITX_VERSION} REQUIRED)
 find_package(Pthread REQUIRED)
 find_package(Gettext REQUIRED)
 find_package(X11 REQUIRED)
-find_package(Qt6 REQUIRED COMPONENTS Core Gui Widgets)
-find_package(Fcitx5Qt${QT_MAJOR_VERSION}WidgetsAddons 5.0.10 REQUIRED)
 
 include("${FCITX_INSTALL_CMAKECONFIG_DIR}/Fcitx5Utils/Fcitx5CompilerSettings.cmake")
 add_definitions(-DFCITX_GETTEXT_DOMAIN=\"fcitx5-lotus\") 
@@ -30,15 +29,21 @@ else()
 endif()
 fcitx5_add_i18n_definition()
 
-include_directories("${CMAKE_CURRENT_SOURCE_DIR}/src")
-
 add_subdirectory(po)
 add_subdirectory(bamboo)
 add_subdirectory(src)
 add_subdirectory(data)
 add_subdirectory(server)
 add_subdirectory(misc)
-add_subdirectory(keymap-editor)
+
+if(ENABLE_QT)
+    add_definitions(-DENABLE_QT)
+    set(QT_MAJOR_VERSION 6)
+    find_package(Qt6 REQUIRED COMPONENTS Core Gui Widgets)
+    find_package(Fcitx5Qt${QT_MAJOR_VERSION}WidgetsAddons 5.0.10 REQUIRED)
+    include_directories("${CMAKE_CURRENT_SOURCE_DIR}/src")
+    add_subdirectory(keymap-editor)
+endif(ENABLE_QT)
 
 fcitx5_translate_desktop_file(org.fcitx.Fcitx5.Addon.Lotus.metainfo.xml.in
     org.fcitx.Fcitx5.Addon.Lotus.metainfo.xml XML)

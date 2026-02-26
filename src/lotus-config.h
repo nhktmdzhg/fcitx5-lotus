@@ -204,12 +204,17 @@ namespace fcitx {
         OptionWithAnnotation<std::string, StringListAnnotation> outputCharset{this, "OutputCharset", _("Output Charset"), "Unicode", {}, {}, StringListAnnotation()};
         Option<bool> spellCheck{this, "SpellCheck", _("Enable spell check"), true}; Option<bool> macro{this, "Macro", _("Enable Macro"), true};
         Option<bool>                                                                             capitalizeMacro{this, "CapitalizeMacro", _("Capitalize Macro"), true};
-        Option<bool>   autoNonVnRestore{this, "AutoNonVnRestore", _("Auto restore keys with invalid words"), true};
-        Option<bool>   modernStyle{this, "ModernStyle", _("Use oà, _uý (instead of òa, úy)"), true};
-        Option<bool>   freeMarking{this, "FreeMarking", _("Allow type with more freedom"), true};
-        Option<bool>   fixUinputWithAck{this, "FixUinputWithAck", _("Fix uinput mode with ack"), false};
-        Option<bool>   useLotusIcons{this, "UseLotusIcons", _("Use Lotus status icons"), false};
-        ExternalOption customKeymapUI{this, "CustomKeymapUI", _("Custom Keymap"), "fcitx://config/addon/lotus/custom_keymap"}; KeyListOption modeMenuKey{
+        Option<bool> autoNonVnRestore{this, "AutoNonVnRestore", _("Auto restore keys with invalid words"), true};
+        Option<bool> modernStyle{this, "ModernStyle", _("Use oà, _uý (instead of òa, úy)"), true};
+        Option<bool> freeMarking{this, "FreeMarking", _("Allow type with more freedom"), true};
+        Option<bool> fixUinputWithAck{this, "FixUinputWithAck", _("Fix uinput mode with ack"), false};
+        Option<bool> useLotusIcons{this, "UseLotusIcons", _("Use Lotus status icons"), false};
+#if ENABLE_QT
+        ExternalOption customKeymapUI{this, "CustomKeymapUI", _("Custom Keymap"), "fcitx://config/addon/lotus/custom_keymap"};
+#else
+        SubConfigOption customKeymap{this, "CustomKeymap", _("Custom Keymap"), "fcitx://config/addon/lotus/custom_keymap"};
+#endif
+        KeyListOption modeMenuKey{
             this, "ModeMenuKey", _("Mode menu hotkey"), {Key("grave")}, KeyListConstrain({KeyConstrainFlag::AllowModifierLess, KeyConstrainFlag::AllowModifierOnly})};);
 
 } // namespace fcitx

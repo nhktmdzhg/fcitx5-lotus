@@ -7,5 +7,8 @@ export DEB_CXXFLAGS_MAINT_STRIP = -g
 %:
 	dh $@
 
+override_dh_auto_configure:
+	dh_auto_configure -- -DENABLE_QT=$(if $(filter noqut,$(DEB_BUILD_PROFILES)),OFF,ON)
+
 override_dh_dwz:
 	@echo "Skipping dh_dwz (incompatible with Go/mixed debug sections)"
