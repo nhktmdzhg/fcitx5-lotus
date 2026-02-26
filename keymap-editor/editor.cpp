@@ -59,6 +59,8 @@ namespace fcitx::lotus {
         tableWidget_->setHorizontalHeaderLabels({_("Key"), _("Action")});
         tableWidget_->horizontalHeader()->setStretchLastSection(true);
         tableWidget_->setSelectionBehavior(QAbstractItemView::SelectRows);
+
+        tableWidget_->setEditTriggers(QAbstractItemView::NoEditTriggers);
         mainLayout->addWidget(tableWidget_);
 
         btnRemove_ = new QPushButton(_("Remove selection entry"), this);
@@ -67,7 +69,6 @@ namespace fcitx::lotus {
         connect(btnAdd_, &QPushButton::clicked, this, &KeymapEditor::onAddClicked);
         connect(btnRemove_, &QPushButton::clicked, this, &KeymapEditor::onRemoveClicked);
         connect(btnLoadPreset_, &QPushButton::clicked, this, &KeymapEditor::onLoadPresetClicked);
-        tableWidget_->setEditTriggers(QAbstractItemView::NoEditTriggers);
         load();
     }
 
@@ -86,8 +87,10 @@ namespace fcitx::lotus {
 
         for (int i = 0; i < tableWidget_->rowCount(); ++i) {
             if (tableWidget_->item(i, 0)->text() == key) {
-                tableWidget_->item(i, 1)->setText(comboAction_->currentText());
-                tableWidget_->item(i, 1)->setData(Qt::UserRole, comboAction_->currentData());
+                auto* cellCombo = qobject_cast<QComboBox*>(tableWidget_->cellWidget(i, 1));
+                if (cellCombo) {
+                    cellCombo->setCurrentIndex(comboAction_->currentIndex());
+                }
                 emit changed(true);
                 return;
             }
@@ -97,9 +100,15 @@ namespace fcitx::lotus {
         tableWidget_->insertRow(row);
         tableWidget_->setItem(row, 0, new QTableWidgetItem(key));
 
-        auto* actionItem = new QTableWidgetItem(comboAction_->currentText());
-        actionItem->setData(Qt::UserRole, comboAction_->currentData());
-        tableWidget_->setItem(row, 1, actionItem);
+        auto* cellCombo = new QComboBox();
+        for (const auto& action : bambooActions_) {
+            cellCombo->addItem(action.second, action.first);
+        }
+        cellCombo->setCurrentIndex(comboAction_->currentIndex());
+
+        connect(cellCombo, &QComboBox::currentIndexChanged, this, [this]() { emit changed(true); });
+
+        tableWidget_->setCellWidget(row, 1, cellCombo);
         emit changed(true);
     }
 
@@ -131,21 +140,23 @@ namespace fcitx::lotus {
             QString key        = pair.first;
             QString actionCode = pair.second;
 
-            QString displayAction = actionCode;
-            for (const auto& action : bambooActions_) {
-                if (action.first == actionCode) {
-                    displayAction = action.second;
-                    break;
-                }
-            }
-
-            int row = tableWidget_->rowCount();
+            int     row = tableWidget_->rowCount();
             tableWidget_->insertRow(row);
             tableWidget_->setItem(row, 0, new QTableWidgetItem(key));
 
-            auto* actionItem = new QTableWidgetItem(displayAction);
-            actionItem->setData(Qt::UserRole, actionCode);
-            tableWidget_->setItem(row, 1, actionItem);
+            auto* cellCombo = new QComboBox();
+            for (const auto& action : bambooActions_) {
+                cellCombo->addItem(action.second, action.first);
+            }
+
+            int idx = cellCombo->findData(actionCode);
+            if (idx >= 0) {
+                cellCombo->setCurrentIndex(idx);
+            }
+
+            connect(cellCombo, &QComboBox::currentIndexChanged, this, [this]() { emit changed(true); });
+
+            tableWidget_->setCellWidget(row, 1, cellCombo);
         }
 
         emit changed(true);
@@ -167,21 +178,23 @@ namespace fcitx::lotus {
             QString key        = QString::fromStdString(item.key.value());
             QString actionCode = QString::fromStdString(item.value.value());
 
-            QString displayAction = actionCode;
-            for (const auto& action : bambooActions_) {
-                if (action.first == actionCode) {
-                    displayAction = action.second;
-                    break;
-                }
-            }
-
-            int row = tableWidget_->rowCount();
+            int     row = tableWidget_->rowCount();
             tableWidget_->insertRow(row);
             tableWidget_->setItem(row, 0, new QTableWidgetItem(key));
 
-            auto* actionItem = new QTableWidgetItem(displayAction);
-            actionItem->setData(Qt::UserRole, actionCode);
-            tableWidget_->setItem(row, 1, actionItem);
+            auto* cellCombo = new QComboBox();
+            for (const auto& action : bambooActions_) {
+                cellCombo->addItem(action.second, action.first);
+            }
+
+            int idx = cellCombo->findData(actionCode);
+            if (idx >= 0) {
+                cellCombo->setCurrentIndex(idx);
+            }
+
+            connect(cellCombo, &QComboBox::currentIndexChanged, this, [this]() { emit changed(true); });
+
+            tableWidget_->setCellWidget(row, 1, cellCombo);
         }
         emit changed(false);
     }
@@ -191,8 +204,13 @@ namespace fcitx::lotus {
         std::vector<lotusKeymap> newList;
 
         for (int i = 0; i < tableWidget_->rowCount(); ++i) {
-            QString     key    = tableWidget_->item(i, 0)->text();
-            QString     action = tableWidget_->item(i, 1)->data(Qt::UserRole).toString();
+            QString key = tableWidget_->item(i, 0)->text();
+
+            auto*   cellCombo = qobject_cast<QComboBox*>(tableWidget_->cellWidget(i, 1));
+            if (!cellCombo)
+                continue;
+
+            QString     action = cellCombo->currentData().toString();
 
             lotusKeymap item;
             item.key.setValue(key.toStdString());
