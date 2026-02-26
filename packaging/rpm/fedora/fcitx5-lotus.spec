@@ -12,9 +12,11 @@ Source0:        %{name}-%{version}.tar.gz
 BuildRequires:  cmake
 BuildRequires:  extra-cmake-modules
 BuildRequires:  gcc-c++
+BuildRequires:  gettext-devel
 BuildRequires:  glibc-devel
 BuildRequires:  cmake(Fcitx5Core)
-BuildRequires:  fcitx5-qt-devel
+BuildRequires:  cmake(Fcitx5Qt6WidgetsAddons)
+BuildRequires:  cmake(qt6)
 BuildRequires:  libinput-devel
 BuildRequires:  systemd-rpm-macros
 BuildRequires:  pkgconfig(libudev)
