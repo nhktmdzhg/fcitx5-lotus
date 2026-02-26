@@ -12,6 +12,7 @@ Source0:        %{name}-%{version}.tar.gz
 BuildRequires:  cmake
 BuildRequires:  extra-cmake-modules
 BuildRequires:  gcc-c++
+BuildRequires:  gettext-devel
 BuildRequires:  glibc-devel
 BuildRequires:  cmake(Fcitx5Core)
 BuildRequires:  cmake(Fcitx5Qt6WidgetsAddons)

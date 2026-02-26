@@ -2,11 +2,7 @@ name: Test Packaging Build
 
 on:
   push:
-    branches:
-      - dev
   pull_request:
-    branches:
-      - dev
 
 jobs:
   build-deb:
@@ -18,27 +14,35 @@ jobs:
           - distro: debian:12
             codename: bookworm
             parallel: 2
+            enable_qt: 'OFF'
           - distro: debian:13
             codename: trixie
             parallel: 4
+            enable_qt: 'ON'
           - distro: debian:testing
             codename: testing
             parallel: 4
+            enable_qt: 'ON'
           - distro: debian:unstable
             codename: sid
             parallel: 4
+            enable_qt: 'ON'
           - distro: ubuntu:22.04
             codename: jammy
             parallel: 1
+            enable_qt: 'OFF'
           - distro: ubuntu:24.04
             codename: noble
             parallel: 2
+            enable_qt: 'ON'
           - distro: ubuntu:25.04
             codename: plucky
             parallel: 4
+            enable_qt: 'ON'
           - distro: ubuntu:25.10
             codename: questing
             parallel: 4
+            enable_qt: 'ON'
 
     runs-on: ubuntu-latest
 
@@ -54,6 +58,7 @@ jobs:
         uses: jtdor/build-deb-action@v1
         env:
           DEB_BUILD_OPTIONS: parallel=${{ matrix.parallel }}
+          DEB_BUILD_PROFILES: ${{ matrix.enable_qt == 'OFF' && 'noqut' || '' }}
         with:
           docker-image: ${{ matrix.distro }}
           buildpackage-opts: --build=binary --no-sign
@@ -92,13 +97,10 @@ jobs:
           options: -v ${{ github.workspace }}:/work
           run: |
             set -euo pipefail
-            dnf install -y \
-              rpm-build rpmdevtools cmake extra-cmake-modules \
-              gcc-c++ glibc-devel fcitx5-devel libinput-devel \
-              systemd-rpm-macros libudev-devel libX11-devel \
-              golang libgudev-devel gettext-devel
+            dnf install -y rpm-build rpmdevtools dnf-plugins-core
             rpmdev-setuptree
             cp /work/packaging/rpm/fedora/fcitx5-lotus.spec ~/rpmbuild/SPECS/
+            dnf builddep -y ~/rpmbuild/SPECS/fcitx5-lotus.spec
             mkdir -p ~/rpmbuild/SOURCES
             cd /work
             VERSION=$(grep '^Version:' packaging/rpm/fedora/fcitx5-lotus.spec | awk '{print $2}')
@@ -140,13 +142,14 @@ jobs:
           options: -v ${{ github.workspace }}:/work
           run: |
             set -euo pipefail
-            zypper install -y \
-              rpm-build rpmdevtools cmake extra-cmake-modules \
-              gcc-c++ glibc-devel fcitx5-devel libinput-devel \
-              systemd-rpm-macros libudev-devel libX11-devel \
-              go libgudev-1_0-devel sysuser-tools
+            zypper install -y rpm-build rpmdevtools
             rpmdev-setuptree
             cp /work/packaging/rpm/opensuse/fcitx5-lotus.spec ~/rpmbuild/SPECS/
+            zypper -n install \
+              $(rpmspec -P ~/rpmbuild/SPECS/fcitx5-lotus.spec \
+                | grep '^BuildRequires:' \
+                | awk '{print $2}' \
+                | xargs)
             mkdir -p ~/rpmbuild/SOURCES
             cd /work
             VERSION=$(grep '^Version:' packaging/rpm/opensuse/fcitx5-lotus.spec | awk '{print $2}')

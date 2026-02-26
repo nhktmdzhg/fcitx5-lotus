@@ -10,7 +10,7 @@
 #include "lotus-config.h"
 #include <fcitx-config/iniparser.h>
 #include <fcitx-utils/i18n.h>
-#include <fcitx-utils/standardpaths.h>
+#include <fcitx-utils/standardpath.h>
 #include <QHeaderView>
 #include <qtmetamacros.h>
 #include <QLabel>
