@@ -14,7 +14,7 @@ jobs:
           - distro: debian:12
             codename: bookworm
             parallel: 2
-            enable_qt: 'ON'
+            enable_qt: 'OFF'
           - distro: debian:13
             codename: trixie
             parallel: 4

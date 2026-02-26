@@ -14,8 +14,7 @@ BuildRequires:  extra-cmake-modules
 BuildRequires:  gcc-c++
 BuildRequires:  glibc-devel
 BuildRequires:  cmake(Fcitx5Core)
-BuildRequires:  cmake(Fcitx5Qt6WidgetsAddons)
-BuildRequires:  cmake(qt6)
+BuildRequires:  fcitx5-qt-devel
 BuildRequires:  libinput-devel
 BuildRequires:  systemd-rpm-macros
 BuildRequires:  pkgconfig(libudev)
