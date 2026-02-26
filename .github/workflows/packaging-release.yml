@@ -241,7 +241,7 @@ jobs:
           retention-days: 1
 
   build-arch:
-    name: Arch Linux (zip)
+    name: Arch Linux (zstd)
     runs-on: ubuntu-latest
 
     steps:
@@ -260,7 +260,7 @@ jobs:
             pacman -S --noconfirm \
               cmake extra-cmake-modules gcc go \
               fcitx5-qt libinput libx11 systemd \
-              make pkgconf zip
+              make pkgconf zstd
 
             cd /work
             cmake \

@@ -168,7 +168,7 @@ jobs:
           path: output/*.rpm
           retention-days: 3
   build-arch:
-    name: Arch Linux (zip)
+    name: Arch Linux (zstd)
     runs-on: ubuntu-latest
 
     steps:
@@ -183,7 +183,7 @@ jobs:
           options: -v ${{ github.workspace }}:/work
           run: |
             set -euo pipefail
-            pacman -Syu --noconfirm
+            pacman -Sy --noconfirm
             pacman -S --noconfirm \
               cmake extra-cmake-modules gcc go \
               fcitx5-qt libinput libx11 systemd \
