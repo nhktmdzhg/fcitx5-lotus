@@ -142,8 +142,7 @@ jobs:
           options: -v ${{ github.workspace }}:/work
           run: |
             set -euo pipefail
-            zypper install -y \
-              zypper install -y rpm-build rpmdevtools
+            zypper install -y rpm-build rpmdevtools
             rpmdev-setuptree
             cp /work/packaging/rpm/opensuse/fcitx5-lotus.spec ~/rpmbuild/SPECS/
             zypper -n install \
