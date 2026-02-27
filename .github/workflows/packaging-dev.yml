@@ -183,7 +183,7 @@ jobs:
           options: -v ${{ github.workspace }}:/work
           run: |
             set -euo pipefail
-            pacman -Syu --noconfirm
+            pacman -Syu --noconfirm \
               cmake extra-cmake-modules gcc go \
               fcitx5-qt libinput libx11 systemd \
               make pkgconf zstd
