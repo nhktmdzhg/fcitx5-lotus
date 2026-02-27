@@ -17,6 +17,10 @@ target_link_libraries(lotus
 	X11::X11
 )
 
+target_compile_definitions(lotus PRIVATE
+    LOTUS_VERSION_STRING="${PROJECT_VERSION}"
+)
+
 target_include_directories(lotus PRIVATE
     ${PROJECT_BINARY_DIR}
     ${PROJECT_SOURCE_DIR}/data/emoji

@@ -322,6 +322,7 @@ namespace fcitx {
         std::unique_ptr<SimpleAction>                    freeMarkingAction_;
         std::unique_ptr<SimpleAction>                    fixUinputWithAckAction_;
         std::unique_ptr<SimpleAction>                    lotusIconsAction_;
+        std::unique_ptr<SimpleAction>                    versionAction_;
         std::vector<ScopedConnection>                    connections_;
         CGoObject                                        dictionary_;
         std::unordered_map<std::string, LotusMode>       appRules_;

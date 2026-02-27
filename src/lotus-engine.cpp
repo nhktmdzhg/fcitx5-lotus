@@ -95,7 +95,14 @@ namespace fcitx {
         dictionary_.reset(NewDictionary(fd.release()));
 
         auto& uiManager = instance_->userInterfaceManager();
-        modeAction_     = std::make_unique<SimpleAction>();
+
+        versionAction_ = std::make_unique<SimpleAction>();
+        versionAction_->setShortText("Lotus " LOTUS_VERSION_STRING);
+        versionAction_->setLongText("Lotus Input Method v" LOTUS_VERSION_STRING);
+        versionAction_->setIcon("help-about");
+        uiManager.registerAction("lotus-version", versionAction_.get());
+
+        modeAction_ = std::make_unique<SimpleAction>();
         modeAction_->setIcon("preferences-system");
         modeAction_->setShortText(_("Typing Mode"));
         uiManager.registerAction("lotus-mode", modeAction_.get());
@@ -424,6 +431,7 @@ namespace fcitx {
         ic->updateUserInterface(UserInterfaceComponent::InputPanel);
         ic->updatePreedit();
 
+        statusArea.addAction(StatusGroup::InputMethod, versionAction_.get());
         statusArea.addAction(StatusGroup::InputMethod, modeAction_.get());
         statusArea.addAction(StatusGroup::InputMethod, inputMethodAction_.get());
         statusArea.addAction(StatusGroup::InputMethod, charsetAction_.get());
