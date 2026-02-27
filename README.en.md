@@ -4,7 +4,7 @@
 
 <div align="center">
   <a href="https://github.com/LotusInputMethod/fcitx5-lotus">
-    <img src="data/icons/scalable/apps/fcitx-lotus.svg" alt="Logo" width="80" height="80">
+    <img src="data/icons/fcitx-lotus-README.svg" alt="Logo" width="80" height="80">
   </a>
 
   <h2 align="center">Fcitx5 Lotus</h2>
