@@ -183,8 +183,7 @@ jobs:
           options: -v ${{ github.workspace }}:/work
           run: |
             set -euo pipefail
-            pacman -Sy --noconfirm
-            pacman -S --noconfirm \
+            pacman -Syu --noconfirm
               cmake extra-cmake-modules gcc go \
               fcitx5-qt libinput libx11 systemd \
               make pkgconf zstd
@@ -192,7 +191,6 @@ jobs:
             cd /work
             export LDFLAGS="-Wl,-O1 -Wl,--sort-common -Wl,--as-needed -Wl,-z,relro -Wl,-z,now -Wl,-z,pack-relative-relocs"
             export CGO_LDFLAGS="-Wl,-O1 -Wl,--sort-common -Wl,--as-needed -Wl,-z,relro -Wl,-z,now -Wl,-z,pack-relative-relocs"
-            MAKEFLAGS="-j$(nproc)"
             cmake \
               -DCMAKE_INSTALL_PREFIX=/usr \
               -DCMAKE_INSTALL_LIBDIR=/usr/lib \
