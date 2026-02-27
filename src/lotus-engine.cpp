@@ -13,6 +13,7 @@
 #include "lotus-monitor.h"
 #include "lotus-utils.h"
 #include "ack-apps.h"
+#include "lotus-version.h"
 
 #include <algorithm>
 #include <fcntl.h>
