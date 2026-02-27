@@ -197,7 +197,7 @@ jobs:
               -DCMAKE_INSTALL_PREFIX=/usr \
               -DCMAKE_INSTALL_LIBDIR=/usr/lib \
               -DCMAKE_BUILD_TYPE=Release \
-              -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON
+              -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON \
               -DCMAKE_EXE_LINKER_FLAGS="$LDFLAGS" \
               -DCMAKE_SHARED_LINKER_FLAGS="$LDFLAGS" \
               -DCMAKE_MODULE_LINKER_FLAGS="$LDFLAGS" \
