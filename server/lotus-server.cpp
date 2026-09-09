@@ -52,7 +52,10 @@ bool UinputDevice::initialize() {
         return false;
     guard_.reset(fd);
 
-    if (ioctl(fd, UI_SET_EVBIT, EV_KEY) < 0 || ioctl(fd, UI_SET_KEYBIT, KEY_BACKSPACE) < 0) {
+    if (ioctl(fd, UI_SET_EVBIT, EV_KEY) < 0 ||
+        ioctl(fd, UI_SET_KEYBIT, KEY_BACKSPACE) < 0 ||
+        ioctl(fd, UI_SET_KEYBIT, KEY_LEFT) < 0 ||
+        ioctl(fd, UI_SET_KEYBIT, KEY_LEFTSHIFT) < 0) {
         return false;
     }
 
@@ -69,6 +72,17 @@ bool UinputDevice::initialize() {
     return true;
 }
 
+void UinputDevice::emit_key(int code, int value) {
+    if (!guard_.is_valid())
+        return;
+    struct input_event ev[2]{};
+    ev[0].type  = EV_KEY;
+    ev[0].code  = static_cast<unsigned short>(code);
+    ev[0].value = value;
+    // ev[1] is zero-initialized → SYN_REPORT
+    write(guard_.get(), ev, sizeof(ev));
+}
+
 void UinputDevice::send_backspace() {
     if (!guard_.is_valid())
         return;
@@ -82,6 +96,27 @@ void UinputDevice::send_backspace() {
     ev[2].value = 0; // Release
     // Zero-initialize ev[3] via {} set this event to SYN_REPORT
     write(guard_.get(), ev, sizeof(ev));
+}
+
+void UinputDevice::send_shift_select(int count, int client_fd) {
+    if (!guard_.is_valid() || count <= 0)
+        return;
+    // Shift DOWN
+    emit_key(KEY_LEFTSHIFT, 1);
+    usleep(2000); // 2ms settle after Shift down
+    // Press Left N times while Shift is held (each with 2ms delay)
+    for (int i = 0; i < count; ++i) {
+        emit_key(KEY_LEFT, 1);
+        emit_key(KEY_LEFT, 0);
+        usleep(2000); // 2ms between each Left key
+    }
+    usleep(2000); // 2ms before releasing Shift
+    // Shift UP
+    emit_key(KEY_LEFTSHIFT, 0);
+    // Send done ACK "D" to the fcitx5 addon
+    if (client_fd >= 0) {
+        send(client_fd, "D", 1, MSG_NOSIGNAL | MSG_DONTWAIT);
+    }
 }
 
 LibinputContext::LibinputContext(const struct libinput_interface* interface) : udev_(udev_new()) {
@@ -327,15 +362,24 @@ int main(int argc, char* argv[]) {
 
         // handle connect from addon
         if (fds[KB_CLIENT_INDEX].fd >= 0 && (fds[KB_CLIENT_INDEX].revents & (POLLIN | POLLHUP | POLLERR)) != 0) {
-            int     count = 0;
-            ssize_t n     = recv(fds[KB_CLIENT_INDEX].fd, &count, sizeof(count), 0);
+            ShiftSelectMsg msg{};
+            ssize_t        n = recv(fds[KB_CLIENT_INDEX].fd, &msg, sizeof(msg), 0);
             if (n <= 0) {
                 LotusLogger::instance().warn("Keyboard client disconnected or connection error");
                 kb_client_fd.reset(-1);
                 fds[KB_CLIENT_INDEX].fd = -1;
-            } else {
+            } else if (n == sizeof(int)) {
+                // Legacy: client sent only an int (backspace count)
+                int count = msg.type; // msg.type holds the int value
                 pending_backspaces += count - 1;
                 uinput.send_backspace();
+            } else if (msg.type == 0) {
+                // type=0: backspace mode
+                pending_backspaces += msg.count - 1;
+                uinput.send_backspace();
+            } else if (msg.type == 1) {
+                // type=1: shift+left select
+                uinput.send_shift_select(msg.count, kb_client_fd.get());
             }
         }
 

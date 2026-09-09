@@ -51,6 +51,7 @@ namespace fcitx {
             case LotusMode::Preedit: return 5;
             case LotusMode::Emoji: return 6;
             case LotusMode::Minecraft: return 8;
+            case LotusMode::UinputShiftSelect: return 9;
             default: return 0;
         }
     }
@@ -65,6 +66,7 @@ namespace fcitx {
             case 5: return LotusMode::Preedit;
             case 6: return LotusMode::Emoji;
             case 8: return LotusMode::Minecraft;
+            case 9: return LotusMode::UinputShiftSelect;
             default: return LotusMode::Off;
         }
     }
@@ -75,7 +77,8 @@ namespace fcitx {
     static bool isAppModeMenuReservedKey(KeySym sym, const lotusConfig& config) {
         if (sym == Key(*config.shortcutSmooth).sym() || sym == Key(*config.shortcutUinput).sym() || sym == Key(*config.shortcutMinecraft).sym() ||
             sym == Key(*config.shortcutSurroundingText).sym() || sym == Key(*config.shortcutPreedit).sym() || sym == Key(*config.shortcutEmoji).sym() ||
-            sym == Key(*config.shortcutOff).sym() || sym == Key(*config.shortcutSuperSmooth).sym() || sym == Key(*config.shortcutDefault).sym()) {
+            sym == Key(*config.shortcutOff).sym() || sym == Key(*config.shortcutSuperSmooth).sym() || sym == Key(*config.shortcutDefault).sym() ||
+            sym == Key(*config.shortcutUinputShiftSelect).sym()) {
             return true;
         }
 
@@ -456,7 +459,9 @@ namespace fcitx {
 
         state->waitAck_ = false;
         if (*config_.fixUinputWithAck) {
-            if (targetMode == LotusMode::Uinput || targetMode == LotusMode::Smooth || targetMode == LotusMode::Minecraft || targetMode == LotusMode::SuperSmooth) {
+            if (targetMode == LotusMode::Uinput || targetMode == LotusMode::Smooth || targetMode == LotusMode::Minecraft || targetMode == LotusMode::SuperSmooth ||
+                targetMode == LotusMode::UinputShiftSelect) {
+
 #if __cplusplus >= 202002L
                 std::ranges::transform(appName, appName.begin(), ::tolower);
 #else
@@ -652,7 +657,8 @@ namespace fcitx {
                                                                     {"Emoji", *config_.showModeEmoji},
                                                                     {"Off", *config_.showModeOff},
                                                                     {"SuperSmooth", *config_.showModeSuperSmooth},
-                                                                    {"Default", *config_.showModeDefault}};
+                                                                    {"Default", *config_.showModeDefault},
+                                                                    {"UinputShiftSelect", *config_.showModeUinputShiftSelect}};
 
             std::vector<LotusMode>                    enabledModes;
             for (const auto& name : order) {
@@ -683,6 +689,8 @@ namespace fcitx {
                         mode = LotusMode::SuperSmooth;
                     else if (name == "Default")
                         mode = config().mode.value();
+                    else if (name == "UinputShiftSelect")
+                        mode = LotusMode::UinputShiftSelect;
                     else
                         continue;
 
@@ -741,6 +749,10 @@ namespace fcitx {
     }
 
     void LotusEngine::reset(const InputMethodEntry& /*entry*/, InputContextEvent& event) {
+        if (shouldRejectReset()) {
+            LOTUS_INFO("areca-style: app reset rejected (active deletion or 20ms post-commit window)");
+            return;
+        }
         LOTUS_INFO("Reset engine");
         auto* state = event.inputContext()->propertyFor(&factory_);
         if (!state->isEmptyHistory() && event.type() != EventType::InputContextFocusOut) {
@@ -765,11 +777,12 @@ namespace fcitx {
                 state->lastDeactivateTime_ = now_ms();
                 LOTUS_INFO("Skip clearAllBuffers");
             } else {
-                if (surrvalid && !state->oldPreBuffer_.empty())
+                if (surrvalid && !state->oldPreBuffer_.empty() && !is_deleting_.load(std::memory_order_acquire))
                     state->clearAllBuffers();
             }
-            is_deleting_.store(false);
-            needEngineReset.store(false);
+            if (!is_deleting_.load(std::memory_order_acquire)) {
+                needEngineReset.store(false);
+            }
             ic->inputPanel().reset();
             ic->updateUserInterface(UserInterfaceComponent::InputPanel);
             if (realMode == LotusMode::Preedit || realMode == LotusMode::Emoji || realMode == LotusMode::SurroundingText)
@@ -988,6 +1001,7 @@ namespace fcitx {
             {"Emoji", {LotusMode::Emoji, _("Emoji Picker"), getShortcut(*config_.shortcutEmoji), *config_.showModeEmoji}},
             {"Off", {LotusMode::Off, _("OFF"), getShortcut(*config_.shortcutOff), *config_.showModeOff}},
             {"SuperSmooth", {LotusMode::SuperSmooth, _("Uinput (Super Smooth)"), getShortcut(*config_.shortcutSuperSmooth), *config_.showModeSuperSmooth}},
+            {"UinputShiftSelect", {LotusMode::UinputShiftSelect, _("Uinput (Shift Select)"), getShortcut(*config_.shortcutUinputShiftSelect), *config_.showModeUinputShiftSelect}},
             {"Default", {config_.mode.value(), _("Default Typing"), getShortcut(*config_.shortcutDefault), *config_.showModeDefault}}};
 
         std::vector<ModeInfo> allModes;
@@ -1096,6 +1110,7 @@ namespace fcitx {
             case LotusMode::Emoji: modeLabel = _("Emoji Picker"); break;
             case LotusMode::Off: modeLabel = _("OFF"); break;
             case LotusMode::SuperSmooth: modeLabel = _("Uinput (Super Smooth)"); break;
+            case LotusMode::UinputShiftSelect: modeLabel = _("Uinput (Shift Select)"); break;
             default: modeLabel = _("Unknown Mode"); break;
         }
 
@@ -1127,6 +1142,9 @@ namespace fcitx {
     }
 
     void LotusEngine::setMode(LotusMode mode, InputContext* ic) {
+        if (realMode == mode && ic != nullptr) {
+            return;
+        }
         realMode = mode;
         if (ic != nullptr) {
             if (auto* state = ic->propertyFor(&factory_)) {

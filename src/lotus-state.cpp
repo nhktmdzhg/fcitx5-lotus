@@ -463,6 +463,7 @@ namespace fcitx {
             }
             ic_->commitString(pending_commit_string_);
             LOTUS_INFO("Commit: " + pending_commit_string_);
+            lastCommitTimeUsec_.store(fcitx::now(CLOCK_MONOTONIC), std::memory_order_release);
             expected_backspaces_     = 0;
             current_backspace_count_ = 0;
             pending_commit_string_.clear();
@@ -476,6 +477,11 @@ namespace fcitx {
     }
 
     void LotusState::performReplacement(const std::string& deletedPart, const std::string& addedPart) {
+        // Delegate to shift-select method when in UinputShiftSelect mode
+        if (realMode.load() == LotusMode::UinputShiftSelect) {
+            performShiftSelectReplacement(deletedPart, addedPart);
+            return;
+        }
         LOTUS_INFO("Perform replacement: " + deletedPart + " -> " + addedPart); //NOLINT
         current_backspace_count_      = 0;
         pending_commit_string_        = addedPart;
@@ -504,6 +510,7 @@ namespace fcitx {
             if (!pending_commit_string_.empty()) {
                 ic_->commitString(pending_commit_string_);
                 LOTUS_INFO("Commit: " + pending_commit_string_);
+                lastCommitTimeUsec_.store(fcitx::now(CLOCK_MONOTONIC), std::memory_order_release);
                 std::this_thread::sleep_for(std::chrono::milliseconds(3 * utf8::length(addedPart)));
             }
             expected_backspaces_     = 0;
@@ -517,9 +524,158 @@ namespace fcitx {
         LOTUS_INFO("Send " + std::to_string(expected_backspaces_) + " backspaces");
     }
 
+    void LotusState::performShiftSelectReplacement(const std::string& deletedPart, const std::string& addedPart) {
+        LOTUS_INFO("Perform shift-select replacement: " + deletedPart + " -> " + addedPart); //NOLINT
+
+        if (uinput_client_fd_ < 0 && !connect_uinput_server()) {
+            LOTUS_ERROR("Cannot connect to uinput server for shift-select, falling back to backspace");
+            performReplacement(deletedPart, addedPart);
+            return;
+        }
+
+        const int nLeft = static_cast<int>(utf8::length(deletedPart));
+        if (nLeft <= 0) {
+            // Nothing to delete, just commit
+            if (!addedPart.empty()) {
+                ic_->commitString(addedPart);
+                LOTUS_INFO("Commit (no delete): " + addedPart);
+                lastCommitTimeUsec_.store(fcitx::now(CLOCK_MONOTONIC), std::memory_order_release);
+                is_deleting_.store(true, std::memory_order_release);
+                scheduleShiftSelect(20, [this]() {
+                    is_deleting_.store(false);
+                    replayBufferedKeys();
+                });
+            }
+            return;
+        }
+
+        // Split addedPart into first UTF-8 char + rest
+        // Per user spec: commit first char, delay 5ms, then commit rest
+        shiftSelectFirstChar_.clear();
+        shiftSelectRestChars_.clear();
+        if (!addedPart.empty()) {
+            auto   range    = fcitx::utf8::MakeUTF8CharRange(addedPart);
+            auto   it       = range.begin();
+            size_t firstLen = 0;
+            if (it != range.end()) {
+                // Get byte length of the first codepoint
+                const char* ptr = addedPart.data();
+                firstLen        = fcitx_utf8_char_len(ptr);
+                if (firstLen == 0 || firstLen > addedPart.size())
+                    firstLen = 1;
+                shiftSelectFirstChar_ = addedPart.substr(0, firstLen);
+                shiftSelectRestChars_ = addedPart.size() > firstLen ? addedPart.substr(firstLen) : "";
+            }
+        }
+
+        is_deleting_.store(true, std::memory_order_release);
+
+        // Send ShiftSelectMsg type=1 to server
+        ShiftSelectMsg msg{1, nLeft};
+        ssize_t        sent = ::send(uinput_client_fd_.load(std::memory_order_acquire), &msg, sizeof(msg), MSG_NOSIGNAL);
+        if (sent < 0) {
+            LOTUS_WARN("Failed to send shift-select msg, falling back");
+            is_deleting_.store(false);
+            performReplacement(deletedPart, addedPart);
+            return;
+        }
+
+        LOTUS_INFO("Sent shift-select msg: nLeft=" + std::to_string(nLeft));
+
+        // Cancel any previous listener
+        shiftSelectAckListener_.reset();
+        shiftSelectTimer_.reset();
+
+        // Watch the socket for done ACK "D" from server — no sleep, EventLoop IO callback
+        int            fd = uinput_client_fd_.load(std::memory_order_acquire);
+        auto&          el = engine_->instance()->eventLoop();
+        auto           icRef = ic_->watch();
+        shiftSelectAckListener_ = el.addIOEvent(fd, IOEventFlag::In, [this, icRef](EventSourceIO*, int, IOEventFlags) -> bool {
+            // Read the ACK byte
+            char    buf[4] = {};
+            ssize_t n      = ::recv(uinput_client_fd_.load(std::memory_order_acquire), buf, sizeof(buf), MSG_DONTWAIT);
+            if (n <= 0 || buf[0] != 'D') {
+                // Not our ACK or error — keep waiting (or handle error)
+                if (n < 0 && (errno == EAGAIN || errno == EWOULDBLOCK))
+                    return true; // keep watching
+                LOTUS_WARN("Unexpected data on uinput socket, aborting shift-select");
+                shiftSelectAckListener_.reset();
+                is_deleting_.store(false);
+                return false;
+            }
+            // Got done ACK — stop IO watcher then schedule commit
+            shiftSelectAckListener_.reset();
+            if (icRef.get() != nullptr) {
+                onShiftSelectDone();
+            }
+            return false; // one-shot
+        });
+    }
+
+    void LotusState::scheduleShiftSelect(uint32_t delayMs, std::function<void()> callback) {
+        shiftSelectTimer_.reset();
+        auto& el  = engine_->instance()->eventLoop();
+        auto  now = ::fcitx::now(CLOCK_MONOTONIC);
+        shiftSelectTimer_ = el.addTimeEvent(CLOCK_MONOTONIC, now + static_cast<uint64_t>(delayMs) * 1000ULL, 0,
+            [this, cb = std::move(callback)](EventSourceTime*, uint64_t) -> bool {
+                auto completed = std::move(shiftSelectTimer_);
+                cb();
+                return false;
+            });
+    }
+
+    void LotusState::onShiftSelectDone() {
+        LOTUS_INFO("ShiftSelect done ACK received");
+        const int delayMs = *engine_->config().uinputShiftSelectDelayMs;
+
+        auto icRef = ic_->watch();
+        scheduleShiftSelect(delayMs, [this, icRef]() {
+            // First char commit
+            if (!shiftSelectFirstChar_.empty()) {
+                if (auto* ic = icRef.get()) {
+                    ic->commitString(shiftSelectFirstChar_);
+                    LOTUS_INFO("ShiftSelect commit first: " + shiftSelectFirstChar_);
+                    lastCommitTimeUsec_.store(fcitx::now(CLOCK_MONOTONIC), std::memory_order_release);
+                }
+            }
+            std::string rest = std::move(shiftSelectRestChars_);
+            shiftSelectFirstChar_.clear();
+            shiftSelectRestChars_.clear();
+
+            if (rest.empty()) {
+                // Done committing: wait 20ms post-commit barrier before processing next key
+                scheduleShiftSelect(20, [this]() {
+                    is_deleting_.store(false);
+                    replayBufferedKeys();
+                });
+                return;
+            }
+
+            // Schedule rest commit after 5ms
+            scheduleShiftSelect(5, [this, rest = std::move(rest), icRef]() {
+                if (auto* ic = icRef.get()) {
+                    ic->commitString(rest);
+                    LOTUS_INFO("ShiftSelect commit rest: " + rest);
+                    lastCommitTimeUsec_.store(fcitx::now(CLOCK_MONOTONIC), std::memory_order_release);
+                }
+                // Done committing: wait 20ms post-commit barrier before processing next key
+                scheduleShiftSelect(20, [this]() {
+                    is_deleting_.store(false);
+                    replayBufferedKeys();
+                });
+            });
+        });
+    }
+
+
     bool LotusState::checkForwardSpecialKey(KeyEvent& keyEvent, KeySym& currentSym) {
         if (keyEvent.key().isCursorMove() || currentSym == FcitxKey_Tab || currentSym == FcitxKey_KP_Tab || currentSym == FcitxKey_ISO_Left_Tab || currentSym == FcitxKey_Escape ||
             keyEvent.key().hasModifier()) {
+            if (shouldRejectReset()) {
+                // Cursor/modifier keys injected by uinput during or within post-commit window of a rewrite.
+                // Forward without resetting state.
+                return true;
+            }
             is_deleting_.store(false, std::memory_order_release);
             expected_backspaces_     = 0;
             current_backspace_count_ = 0;
@@ -634,7 +790,15 @@ namespace fcitx {
                     }
                     ic_->commitString(addedPart);
                     LOTUS_INFO("Commit: " + addedPart);
+                    lastCommitTimeUsec_.store(fcitx::now(CLOCK_MONOTONIC), std::memory_order_release);
                     keyEvent.filterAndAccept();
+                    if (realMode == LotusMode::UinputShiftSelect) {
+                        is_deleting_.store(true, std::memory_order_release);
+                        scheduleShiftSelect(20, [this]() {
+                            is_deleting_.store(false);
+                            replayBufferedKeys();
+                        });
+                    }
                 } else {
                     keyEvent.forward();
                 }
@@ -679,9 +843,17 @@ namespace fcitx {
                     if (wa_chromium_flag || wasAutoCapitalized || addedPart != keyUtf8) {
                         ic_->commitString(addedPart);
                         LOTUS_INFO("Commit: " + addedPart);
+                        lastCommitTimeUsec_.store(fcitx::now(CLOCK_MONOTONIC), std::memory_order_release);
                         if (!wa_chromium_flag) {
                             keyEvent.filterAndAccept();
                             isCommit = true;
+                        }
+                        if (realMode == LotusMode::UinputShiftSelect) {
+                            is_deleting_.store(true, std::memory_order_release);
+                            scheduleShiftSelect(20, [this]() {
+                                is_deleting_.store(false);
+                                replayBufferedKeys();
+                            });
                         }
                     }
                 }
@@ -1005,7 +1177,7 @@ namespace fcitx {
             LOTUS_WARN("Cannot connect to uinput server, reconnecting....");
             connect_uinput_server();
         }
-        if (current_backspace_count_ >= expected_backspaces_ && is_deleting_.load()) {
+        if (realMode != LotusMode::UinputShiftSelect && expected_backspaces_ > 0 && current_backspace_count_ >= expected_backspaces_ && is_deleting_.load()) {
             is_deleting_.store(false);
             current_backspace_count_ = 0;
             expected_backspaces_     = 0;
@@ -1078,6 +1250,10 @@ namespace fcitx {
                 if (handleUInputKeyPress(keyEvent, currentSym, (realMode == LotusMode::Smooth || realMode == LotusMode::SuperSmooth) ? 2 : 8)) {
                     return;
                 }
+            } else if (keyEvent.key().isCursorMove() || keyEvent.rawKey().isModifier()) {
+                // Injected by uinput (Shift, Left) during rewrite: forward directly
+                keyEvent.forward();
+                return;
             } else {
                 std::string keyUtf8Check = Key::keySymToUTF8(currentSym);
                 if (!keyUtf8Check.empty() && buffered_keys_.size() < MAX_BUFFERED_KEYS) {
@@ -1123,7 +1299,8 @@ namespace fcitx {
             case LotusMode::Uinput:
             case LotusMode::Smooth:
             case LotusMode::Minecraft:
-            case LotusMode::SuperSmooth: {
+            case LotusMode::SuperSmooth:
+            case LotusMode::UinputShiftSelect: {
                 handleUinputMode(keyEvent, currentSym);
                 break;
             }
@@ -1154,7 +1331,7 @@ namespace fcitx {
         const auto& text        = surrounding.text();
         size_t      textLen     = utf8::length(text);
         realtextLen.store(textLen, std::memory_order_release);
-        if (is_deleting_.load(std::memory_order_acquire)) {
+        if (shouldRejectReset()) {
             return;
         }
         resetMacroSkip();
@@ -1190,7 +1367,8 @@ namespace fcitx {
             case LotusMode::Uinput:
             case LotusMode::Smooth:
             case LotusMode::Minecraft:
-            case LotusMode::SuperSmooth: {
+            case LotusMode::SuperSmooth:
+            case LotusMode::UinputShiftSelect: {
                 ic_->inputPanel().reset();
                 break;
             }
@@ -1225,10 +1403,14 @@ namespace fcitx {
             case LotusMode::Smooth:
             case LotusMode::SurroundingText:
             case LotusMode::Minecraft:
-            case LotusMode::SuperSmooth: {
+            case LotusMode::SuperSmooth:
+            case LotusMode::UinputShiftSelect: {
                 if (lotusEngine_) {
                     ResetEngine(lotusEngine_.handle());
                 }
+                // Cancel any in-progress shift-select sequence
+                shiftSelectAckListener_.reset();
+                shiftSelectTimer_.reset();
                 break;
             }
             default: {
@@ -1239,7 +1421,7 @@ namespace fcitx {
 
     void LotusState::clearAllBuffers() {
         LOTUS_DEBUG("Clear all buffers");
-        if (is_deleting_.load(std::memory_order_acquire)) {
+        if (shouldRejectReset()) {
             return;
         }
         resetMacroSkip();
@@ -1270,6 +1452,106 @@ namespace fcitx {
         if (buffered_keys_.empty()) {
             return;
         }
+        if (is_deleting_.load(std::memory_order_acquire)) {
+            return;
+        }
+
+        if (realMode == LotusMode::UinputShiftSelect) {
+            auto keyInfo = buffered_keys_.front();
+            buffered_keys_.erase(buffered_keys_.begin());
+
+            auto        sym     = static_cast<KeySym>(keyInfo.sym);
+            uint32_t    state   = keyInfo.state;
+            std::string keyUtf8 = Key::keySymToUTF8(sym);
+            if (keyUtf8.empty()) {
+                replayBufferedKeys();
+                return;
+            }
+
+            bool processed = EngineProcessKeyEvent(lotusEngine_.handle(), sym, state) != 0U;
+
+            auto commitF = UniqueCPtr<char>(EnginePullCommit(lotusEngine_.handle()));
+            if (commitF && (*commitF.get() != 0)) {
+                std::string commitStr = commitF.get();
+                std::string deletedPart;
+                std::string addedPart;
+                compareAndSplitStrings(oldPreBuffer_, commitStr, deletedPart, addedPart);
+
+                hasHistory_ = false;
+                ResetEngine(lotusEngine_.handle());
+                oldPreBuffer_.clear();
+
+                if (!deletedPart.empty()) {
+                    performReplacement(deletedPart, addedPart);
+                    return;
+                }
+                if (!addedPart.empty()) {
+                    ic_->commitString(addedPart);
+                    LOTUS_INFO("Replay commit: " + addedPart);
+                    lastCommitTimeUsec_.store(fcitx::now(CLOCK_MONOTONIC), std::memory_order_release);
+                    is_deleting_.store(true, std::memory_order_release);
+                    scheduleShiftSelect(20, [this]() {
+                        is_deleting_.store(false);
+                        replayBufferedKeys();
+                    });
+                    return;
+                }
+                replayBufferedKeys();
+                return;
+            }
+
+            if (!processed) {
+                ic_->commitString(keyUtf8);
+                LOTUS_INFO("Replay commit raw: " + keyUtf8);
+                lastCommitTimeUsec_.store(fcitx::now(CLOCK_MONOTONIC), std::memory_order_release);
+                is_deleting_.store(true, std::memory_order_release);
+                scheduleShiftSelect(20, [this]() {
+                    is_deleting_.store(false);
+                    replayBufferedKeys();
+                });
+                return;
+            }
+
+            hasHistory_ = true;
+            realtextLen.fetch_add(1, std::memory_order_acq_rel);
+
+            UniqueCPtr<char> preeditC(EnginePullPreedit(lotusEngine_.handle()));
+            std::string      preeditStr = (preeditC && (*preeditC.get() != 0)) ? preeditC.get() : "";
+
+            std::string      deletedPart;
+            std::string      addedPart;
+            if (compareAndSplitStrings(oldPreBuffer_, preeditStr, deletedPart, addedPart) != 0) {
+                if (deletedPart.empty()) {
+                    if (!addedPart.empty()) {
+                        ic_->commitString(addedPart);
+                        LOTUS_INFO("Replay commit added: " + addedPart);
+                        lastCommitTimeUsec_.store(fcitx::now(CLOCK_MONOTONIC), std::memory_order_release);
+                        oldPreBuffer_ = preeditStr;
+                        is_deleting_.store(true, std::memory_order_release);
+                        scheduleShiftSelect(20, [this]() {
+                            is_deleting_.store(false);
+                            replayBufferedKeys();
+                        });
+                        return;
+                    }
+                    replayBufferedKeys();
+                    return;
+                } else {
+                    if (uinput_client_fd_ < 0) {
+                        ic_->commitString(keyUtf8);
+                        lastCommitTimeUsec_.store(fcitx::now(CLOCK_MONOTONIC), std::memory_order_release);
+                        replayBufferedKeys();
+                        return;
+                    }
+                    performReplacement(deletedPart, addedPart);
+                    oldPreBuffer_ = preeditStr;
+                    return;
+                }
+            }
+            replayBufferedKeys();
+            return;
+        }
+
         auto keys = std::move(buffered_keys_);
         buffered_keys_.clear();
         for (size_t i = 0; i < keys.size(); ++i) {
@@ -1304,6 +1586,7 @@ namespace fcitx {
                 }
                 if (!addedPart.empty()) {
                     ic_->commitString(addedPart);
+                    lastCommitTimeUsec_.store(fcitx::now(CLOCK_MONOTONIC), std::memory_order_release);
                 }
 
                 hasHistory_ = false;
@@ -1314,6 +1597,7 @@ namespace fcitx {
 
             if (!processed) {
                 ic_->commitString(keyUtf8);
+                lastCommitTimeUsec_.store(fcitx::now(CLOCK_MONOTONIC), std::memory_order_release);
                 continue;
             }
 
@@ -1329,11 +1613,13 @@ namespace fcitx {
                 if (deletedPart.empty()) {
                     if (!addedPart.empty()) {
                         ic_->commitString(addedPart);
+                        lastCommitTimeUsec_.store(fcitx::now(CLOCK_MONOTONIC), std::memory_order_release);
                         oldPreBuffer_ = preeditStr;
                     }
                 } else {
                     if (uinput_client_fd_ < 0) {
                         ic_->commitString(keyUtf8);
+                        lastCommitTimeUsec_.store(fcitx::now(CLOCK_MONOTONIC), std::memory_order_release);
                         continue;
                     }
 

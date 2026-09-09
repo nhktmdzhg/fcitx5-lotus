@@ -20,7 +20,9 @@
 #include "lotus-utils.h"
 
 #include <cstddef>
+#include <functional>
 #include <fcitx-utils/misc.h>
+#include <fcitx-utils/event.h>
 #include <fcitx/inputcontext.h>
 
 struct EmojiEntry;
@@ -108,6 +110,14 @@ namespace fcitx {
         bool                    tracking_modifier_tap_ = false; ///< Selected modifier held, waiting for consecutive keyup
         bool                    macro_skip_            = false; ///< Macro disabled for the current word
 
+        // UinputShiftSelect mode state
+        std::unique_ptr<EventSourceTime> shiftSelectTimer_;       ///< EventLoop timer for shift-select sequencing
+        std::unique_ptr<EventSourceIO>   shiftSelectAckListener_; ///< IO watcher waiting for server done ACK
+        std::string                      shiftSelectFirstChar_;    ///< First UTF-8 char to commit
+        std::string                      shiftSelectRestChars_;    ///< Remaining chars to commit after delay
+        void scheduleShiftSelect(uint32_t delayMs, std::function<void()> callback);
+
+
         /**
          * @brief Connects to the uinput server.
          * @return True if connection successful.
@@ -167,11 +177,26 @@ namespace fcitx {
         bool handleUInputKeyPress(KeyEvent& event, KeySym currentSym, int sleepTime);
 
         /**
-         * @brief Performs text replacement via uinput.
+         * @brief Performs text replacement via uinput (backspace method).
          * @param deletedPart Text to delete.
          * @param addedPart Text to insert.
          */
         void performReplacement(const std::string& deletedPart, const std::string& addedPart);
+
+        /**
+         * @brief Performs text replacement via Shift+Left selection (UinputShiftSelect mode).
+         * Sends a ShiftSelectMsg to server, waits for done ACK via EventSourceIO,
+         * then commits addedPart with a small delay via EventLoop.
+         * @param deletedPart Text to select and replace.
+         * @param addedPart Text to insert after selection.
+         */
+        void performShiftSelectReplacement(const std::string& deletedPart, const std::string& addedPart);
+
+        /**
+         * @brief Called when server sends done ACK for shift-select.
+         * Schedules commit of first char then rest.
+         */
+        void onShiftSelectDone();
 
         /**
          * @brief Handles the double space to period replacement.

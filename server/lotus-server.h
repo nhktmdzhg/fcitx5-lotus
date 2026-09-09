@@ -60,6 +60,16 @@ class FdGuard {
 };
 
 /**
+ * @brief Protocol message for keyboard socket.
+ * type=0: send N backspaces (legacy)
+ * type=1: Shift+Left select N chars, then send done ACK
+ */
+struct ShiftSelectMsg {
+    int type;  ///< 0 = backspace, 1 = shift+select
+    int count; ///< number of keys to send
+};
+
+/**
  * @brief RAII Wrapper for uinput device.
  * Handles UI_DEV_CREATE and UI_DEV_DESTROY automatically.
  */
@@ -76,12 +86,19 @@ class UinputDevice {
 
     bool          initialize();
     void          send_backspace();
+    /**
+     * @brief Sends Shift+Left N times to select N chars, then sends done ACK.
+     * @param count Number of Left key presses.
+     * @param client_fd Socket fd to send ACK "D" after completion.
+     */
+    void          send_shift_select(int count, int client_fd);
     int           get_fd() const {
         return guard_.get();
     }
 
   private:
     FdGuard guard_;
+    void    emit_key(int code, int value);
 };
 
 /**

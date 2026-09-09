@@ -25,8 +25,23 @@ std::atomic<bool>             stop_flag_monitor{false};
 std::atomic<int>              uinput_client_fd_{-1};
 std::atomic<unsigned int>     realtextLen{0};
 std::atomic<int>              mouse_socket_fd{-1};
+std::atomic<uint64_t>         lastCommitTimeUsec_{0};
 
-FCITX_DEFINE_LOG_CATEGORY(lotus, "lotus", fcitx::LogLevel::NoLog);
+FCITX_DEFINE_LOG_CATEGORY(lotus, "lotus", fcitx::LogLevel::Debug);
+
+bool shouldRejectReset() {
+    if (is_deleting_.load(std::memory_order_acquire)) {
+        return true;
+    }
+    uint64_t lastCommit = lastCommitTimeUsec_.load(std::memory_order_acquire);
+    if (lastCommit != 0) {
+        uint64_t now = fcitx::now(CLOCK_MONOTONIC);
+        if (now >= lastCommit && (now - lastCommit) <= 50000) { // 50ms post-commit window
+            return true;
+        }
+    }
+    return false;
+}
 
 std::string buildSocketPath(const char* base_path_suffix) {
     struct passwd  pwd{};

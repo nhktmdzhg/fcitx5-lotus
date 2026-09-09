@@ -17,6 +17,8 @@
 #include <atomic>
 #include <sys/un.h>
 #include <fcitx-utils/log.h>
+#include <fcitx-utils/misc.h>
+#include <fcitx-utils/eventloopinterface.h>
 #include <fcitx/inputcontext.h>
 
 #include "lotus-config.h"
@@ -45,6 +47,13 @@ extern std::atomic<bool>             stop_flag_monitor; ///< Signal to stop moni
 extern std::atomic<int>              uinput_client_fd_; ///< Uinput client file descriptor
 extern std::atomic<unsigned int>     realtextLen;       ///< Current text length
 extern std::atomic<int>              mouse_socket_fd;   ///< Mouse socket file descriptor
+extern std::atomic<uint64_t>         lastCommitTimeUsec_; ///< Timestamp of last rewrite completion in microseconds
+
+/**
+ * @brief Checks whether reset/activate/deactivate should be rejected.
+ * Rejects if deletion is active or within 50ms post-commit window.
+ */
+bool shouldRejectReset();
 
 /**
  * @brief Builds socket path from base suffix.
@@ -107,6 +116,16 @@ std::string getFrontendName(fcitx::InputContext* ic);
 struct KeyEntry {
     uint32_t sym;   ///< Key symbol
     uint32_t state; ///< Key state (modifiers)
+};
+
+/**
+ * @brief Protocol message for keyboard socket (uinput server).
+ * type=0: send N backspaces (legacy int-only compatible)
+ * type=1: Shift+Left select N chars, then server sends done ACK "D"
+ */
+struct ShiftSelectMsg {
+    int type;  ///< 0 = backspace, 1 = shift+select
+    int count; ///< number of keys to send
 };
 
 #endif // _FCITX5_LOTUS_UTILS_H_
