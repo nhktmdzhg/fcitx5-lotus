@@ -20,6 +20,8 @@
 #include "lotus-utils.h"
 
 #include <cstddef>
+#include <functional>
+#include <fcitx-utils/event.h>
 #include <fcitx-utils/misc.h>
 #include <fcitx/inputcontext.h>
 
@@ -98,6 +100,7 @@ namespace fcitx {
         std::string             emojiBuffer_;
         std::vector<EmojiEntry> emojiCandidates_;
         bool                    waitAck_ = false;
+        std::unique_ptr<EventSourceTime> uinput_commit_timer_;
         std::vector<KeyEntry>   buffered_keys_; ///< Keystrokes buffered during replacement
         bool                    isPrevSpace_           = false;
         bool                    isPrevHyphen_          = false;
@@ -198,6 +201,21 @@ namespace fcitx {
          * @param sleepTime Delay in microseconds.
          */
         void handleUinputMode(KeyEvent& keyEvent, KeySym currentSym);
+
+        /**
+         * @brief Handles Uinput (Backspace) mode processing.
+         * @param keyEvent The key event.
+         * @param currentSym Current key symbol.
+         */
+        void handleUinputBackspaceMode(KeyEvent& keyEvent, KeySym currentSym);
+
+        /**
+         * @brief Performs replacement in UinputBackspace mode using server + calculated delay.
+         * @param deletedPart Text to delete.
+         * @param addedPart Text to insert.
+         */
+        void performUinputBackspaceReplacement(const std::string& deletedPart, const std::string& addedPart);
+        void scheduleUinputBackspace(uint32_t delayMs, std::function<void()> callback);
 
         /**
          * @brief Handles surrounding text mode.

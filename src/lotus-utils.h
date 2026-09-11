@@ -17,6 +17,8 @@
 #include <atomic>
 #include <sys/un.h>
 #include <fcitx-utils/log.h>
+#include <fcitx-utils/misc.h>
+#include <fcitx-utils/eventloopinterface.h>
 #include <fcitx/inputcontext.h>
 
 #include "lotus-config.h"
@@ -58,6 +60,14 @@ std::string buildSocketPath(const char* base_path_suffix);
  * @return Timestamp in milliseconds.
  */
 int64_t now_ms();
+
+extern std::atomic<uint64_t> lastCommitTimeUsec_; ///< Timestamp of last rewrite completion in microseconds
+
+/**
+ * @brief Checks whether reset/activate/deactivate should be rejected.
+ * Rejects if deletion is active or within 50ms post-commit window.
+ */
+bool shouldRejectReset();
 
 /**
  * @brief Checks if key symbol is a backspace.

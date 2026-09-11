@@ -51,6 +51,7 @@ namespace fcitx {
             case LotusMode::Preedit: return 5;
             case LotusMode::Emoji: return 6;
             case LotusMode::Minecraft: return 8;
+            case LotusMode::UinputBackspace: return 9;
             default: return 0;
         }
     }
@@ -65,6 +66,7 @@ namespace fcitx {
             case 5: return LotusMode::Preedit;
             case 6: return LotusMode::Emoji;
             case 8: return LotusMode::Minecraft;
+            case 9: return LotusMode::UinputBackspace;
             default: return LotusMode::Off;
         }
     }
@@ -75,7 +77,8 @@ namespace fcitx {
     static bool isAppModeMenuReservedKey(KeySym sym, const lotusConfig& config) {
         if (sym == Key(*config.shortcutSmooth).sym() || sym == Key(*config.shortcutUinput).sym() || sym == Key(*config.shortcutMinecraft).sym() ||
             sym == Key(*config.shortcutSurroundingText).sym() || sym == Key(*config.shortcutPreedit).sym() || sym == Key(*config.shortcutEmoji).sym() ||
-            sym == Key(*config.shortcutOff).sym() || sym == Key(*config.shortcutSuperSmooth).sym() || sym == Key(*config.shortcutDefault).sym()) {
+            sym == Key(*config.shortcutOff).sym() || sym == Key(*config.shortcutSuperSmooth).sym() || sym == Key(*config.shortcutDefault).sym() ||
+            sym == Key(*config.shortcutUinputBackspace).sym()) {
             return true;
         }
 
@@ -456,7 +459,7 @@ namespace fcitx {
 
         state->waitAck_ = false;
         if (*config_.fixUinputWithAck) {
-            if (targetMode == LotusMode::Uinput || targetMode == LotusMode::Smooth || targetMode == LotusMode::Minecraft || targetMode == LotusMode::SuperSmooth) {
+            if (targetMode == LotusMode::Uinput || targetMode == LotusMode::Smooth || targetMode == LotusMode::Minecraft || targetMode == LotusMode::SuperSmooth || targetMode == LotusMode::UinputBackspace) {
 #if __cplusplus >= 202002L
                 std::ranges::transform(appName, appName.begin(), ::tolower);
 #else
@@ -652,6 +655,7 @@ namespace fcitx {
                                                                     {"Emoji", *config_.showModeEmoji},
                                                                     {"Off", *config_.showModeOff},
                                                                     {"SuperSmooth", *config_.showModeSuperSmooth},
+                                                                    {"UinputBackspace", *config_.showModeUinputBackspace},
                                                                     {"Default", *config_.showModeDefault}};
 
             std::vector<LotusMode>                    enabledModes;
@@ -681,6 +685,8 @@ namespace fcitx {
                         mode = LotusMode::Off;
                     else if (name == "SuperSmooth")
                         mode = LotusMode::SuperSmooth;
+                    else if (name == "UinputBackspace")
+                        mode = LotusMode::UinputBackspace;
                     else if (name == "Default")
                         mode = config().mode.value();
                     else
@@ -741,6 +747,13 @@ namespace fcitx {
     }
 
     void LotusEngine::reset(const InputMethodEntry& /*entry*/, InputContextEvent& event) {
+        // Chặn reset ngoài ý muốn: Khi vừa gửi Backspace qua uinput hoặc trong cửa sổ 50ms sau commit,
+        // các app/compositor thường phát sự kiện reset về Fcitx5. Nếu reset lúc này sẽ xóa trắng Bamboo Engine
+        // và làm mất ngữ cảnh đang ghép từ tiếng Việt.
+        if (shouldRejectReset()) {
+            LOTUS_INFO("app reset rejected (active deletion or post-commit window)");
+            return;
+        }
         LOTUS_INFO("Reset engine");
         auto* state = event.inputContext()->propertyFor(&factory_);
         if (!state->isEmptyHistory() && event.type() != EventType::InputContextFocusOut) {
@@ -765,11 +778,14 @@ namespace fcitx {
                 state->lastDeactivateTime_ = now_ms();
                 LOTUS_INFO("Skip clearAllBuffers");
             } else {
-                if (surrvalid && !state->oldPreBuffer_.empty())
+                // Không xóa buffer nếu đang bận gửi uinput backspace để tránh xóa mất từ đang thay thế
+                if (surrvalid && !state->oldPreBuffer_.empty() && !is_deleting_.load(std::memory_order_acquire))
                     state->clearAllBuffers();
             }
-            is_deleting_.store(false);
-            needEngineReset.store(false);
+            // Không xóa cờ needEngineReset nếu đang trong quá trình xóa uinput
+            if (!is_deleting_.load(std::memory_order_acquire)) {
+                needEngineReset.store(false);
+            }
             ic->inputPanel().reset();
             ic->updateUserInterface(UserInterfaceComponent::InputPanel);
             if (realMode == LotusMode::Preedit || realMode == LotusMode::Emoji || realMode == LotusMode::SurroundingText)
@@ -988,6 +1004,7 @@ namespace fcitx {
             {"Emoji", {LotusMode::Emoji, _("Emoji Picker"), getShortcut(*config_.shortcutEmoji), *config_.showModeEmoji}},
             {"Off", {LotusMode::Off, _("OFF"), getShortcut(*config_.shortcutOff), *config_.showModeOff}},
             {"SuperSmooth", {LotusMode::SuperSmooth, _("Uinput (Super Smooth)"), getShortcut(*config_.shortcutSuperSmooth), *config_.showModeSuperSmooth}},
+            {"UinputBackspace", {LotusMode::UinputBackspace, _("Uinput (Backspace)"), getShortcut(*config_.shortcutUinputBackspace), *config_.showModeUinputBackspace}},
             {"Default", {config_.mode.value(), _("Default Typing"), getShortcut(*config_.shortcutDefault), *config_.showModeDefault}}};
 
         std::vector<ModeInfo> allModes;
@@ -1096,6 +1113,7 @@ namespace fcitx {
             case LotusMode::Emoji: modeLabel = _("Emoji Picker"); break;
             case LotusMode::Off: modeLabel = _("OFF"); break;
             case LotusMode::SuperSmooth: modeLabel = _("Uinput (Super Smooth)"); break;
+            case LotusMode::UinputBackspace: modeLabel = _("Uinput (Backspace)"); break;
             default: modeLabel = _("Unknown Mode"); break;
         }
 

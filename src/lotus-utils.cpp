@@ -25,8 +25,31 @@ std::atomic<bool>             stop_flag_monitor{false};
 std::atomic<int>              uinput_client_fd_{-1};
 std::atomic<unsigned int>     realtextLen{0};
 std::atomic<int>              mouse_socket_fd{-1};
+std::atomic<uint64_t>         lastCommitTimeUsec_{0};
 
 FCITX_DEFINE_LOG_CATEGORY(lotus, "lotus", fcitx::LogLevel::NoLog);
+
+// Kiểm tra xem có nên từ chối yêu cầu reset từ ứng dụng/compositor hay không.
+// Khi gõ tiếng Việt (đặc biệt trong các app như Chrome, Electron, Qt, GTK):
+// 1. Quá trình gửi phím Backspace qua uinput hoặc commit ký tự mới thường kích hoạt sự kiện reset từ app gửi về Fcitx5.
+// 2. Nếu chấp nhận reset lúc này, Bamboo Engine sẽ bị reset về trạng thái ban đầu, làm mất toàn bộ ngữ cảnh từ đang gõ dở
+//    dẫn đến các lỗi kinh điển: mất dấu, nhảy chữ, gõ 'tiếng' thành 'tiế ng', v.v.
+// Vì vậy: Chặn triệt để reset nếu:
+// - Đang bận gửi phím xóa qua uinput (is_deleting_ == true)
+// - Hoặc vừa mới commit xong ký tự thay thế trong cửa sổ an toàn 50ms (lastCommitTimeUsec_)
+bool shouldRejectReset() {
+    if (is_deleting_.load(std::memory_order_acquire)) {
+        return true;
+    }
+    uint64_t lastCommit = lastCommitTimeUsec_.load(std::memory_order_acquire);
+    if (lastCommit != 0) {
+        uint64_t now = fcitx::now(CLOCK_MONOTONIC);
+        if (now >= lastCommit && (now - lastCommit) <= 50000) { // Cửa sổ an toàn 50ms (50,000 microsecond) sau commit
+            return true;
+        }
+    }
+    return false;
+}
 
 std::string buildSocketPath(const char* base_path_suffix) {
     struct passwd  pwd{};

@@ -35,10 +35,11 @@ namespace fcitx {
         Preedit,
         Emoji,
         Minecraft,
+        UinputBackspace,
     };
 
     FCITX_CONFIG_ENUM_NAME_WITH_I18N(LotusMode, N_("OFF"), N_("Uinput (Smooth)"), N_("Uinput (Super Smooth)"), N_("Uinput (Slow)"), N_("Surrounding Text"), N_("Preedit"),
-                                     N_("Emoji Picker"), N_("Minecraft"));
+                                     N_("Emoji Picker"), N_("Minecraft"), N_("Uinput (Backspace)"));
 
     /**
      * @brief Converts LotusMode to int and vice versa.
@@ -262,11 +263,14 @@ namespace fcitx {
         Option<std::string> shortcutEmoji{this, "ShortcutEmoji", _("Shortcut for Emoji Picker"), "w"}; Option<bool> showModeOff{this, "ShowModeOff", _("Show OFF"), true};
         Option<std::string> shortcutOff{this, "ShortcutOff", _("Shortcut for OFF"), "e"}; Option<bool> showModeDefault{this, "ShowModeDefault", _("Show Default Typing"), true};
         Option<std::string> shortcutDefault{this, "ShortcutDefault", _("Shortcut for Default Typing"), "r"};
+        Option<bool>        showModeUinputBackspace{this, "ShowModeUinputBackspace", _("Show Uinput (Backspace)"), true};
+        Option<std::string> shortcutUinputBackspace{this, "ShortcutUinputBackspace", _("Shortcut for Uinput (Backspace)"), "b"};
+        Option<int>         uinputBackspaceAfterWaitMs{this, "UinputBackspaceAfterWaitMs", _("After Backspace Wait Time (ms)"), 10};
         Option<bool>        enableMacroInOffMode{this, "EnableMacroInOffMode", _("Allow Macro in Off Mode"), false};
 
         Option<bool>        useSurroundingTextIfPossible{this, "useSurroundingTextIfPossible", _("Use Surrounding Text if possible"), false};
 
-        Option<std::string> modeOrder{this, "ModeOrder", _("Mode Order"), "Smooth,Uinput,Minecraft,SurroundingText,Preedit,Emoji,Off,SuperSmooth,Default"};
+        Option<std::string> modeOrder{this, "ModeOrder", _("Mode Order"), "Smooth,Uinput,Minecraft,SurroundingText,Preedit,Emoji,Off,SuperSmooth,UinputBackspace,Default"};
 
         OptionWithAnnotation<std::string, TimeFormatAnnotation>  timeFormat{this, "TimeFormat", _("Time Format ($TIME in macro)"), "%H:%M", {}, {}, TimeFormatAnnotation()};
         OptionWithAnnotation<std::string, DateFormatAnnotation>  dateFormat{this, "DateFormat", _("Date Format ($DATE in macro)"), "%d/%m/%Y", {}, {}, DateFormatAnnotation()};
