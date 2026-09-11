@@ -757,6 +757,7 @@ namespace fcitx {
         auto*      state           = ic->propertyFor(&factory_);
         const bool surrvalid       = ic->surroundingText().isValid();
         const bool is_dbus         = getFrontendName(ic) == "dbus";
+        state->xaChoDangCho();   // v13: chữ còn treo thì giao vào ô CŨ trước khi rời đi
         state->lastDeactivateTime_ = now_ms();
         if (realMode == LotusMode::Preedit && event.type() != EventType::InputContextFocusOut) {
             state->commitBuffer();
@@ -780,13 +781,25 @@ namespace fcitx {
     void LotusEngine::refreshEngine() {
         if (!factory_.registered())
             return;
-        instance_->inputContextManager().foreach ([this](InputContext* ic) {
+        bool coCuaSoDangGo = false;
+        instance_->inputContextManager().foreach ([this, &coCuaSoDangGo](InputContext* ic) {
             auto* state = ic->propertyFor(&factory_);
             state->setEngine();
-            if (ic->hasFocus())
+            if (ic->hasFocus()) {
+                // Đặt lại chế độ theo ĐÚNG luật của app đang gõ. Trước đây setEngine()
+                // ghi thẳng mặc định chung vào realMode nên nạp lại cấu hình là mất luật
+                // riêng của cửa sổ đang hoạt động.
+                setMode(getAppRule(getProgramName(ic)), ic);
                 state->reset();
+                coCuaSoDangGo = true;
+            }
             return true;
         });
+        // Không có cửa sổ nào đang gõ thì không có luật riêng nào để theo; giữ mặc định
+        // chung như hành vi cũ. Lần focus kế tiếp activate() sẽ đặt lại cho đúng.
+        if (!coCuaSoDangGo) {
+            realMode = config_.mode.value();
+        }
     }
 
     void LotusEngine::refreshOption() {

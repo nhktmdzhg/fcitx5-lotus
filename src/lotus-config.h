@@ -241,6 +241,13 @@ namespace fcitx {
         Option<bool>        freeMarking{this, "FreeMarking", _("Allow Type With More Freedom"), true};
         Option<bool>        ddFreeStyle{this, "DdFreeStyle", _("Allow dd To Produce đ When Auto Restore Invalid Words Is On"), true};
         Option<bool>        fixUinputWithAck{this, "FixUinputWithAck", _("Fix Uinput Mode With Ack"), false};
+        Option<bool>        waitSurroundingEvent{this, "WaitSurroundingEvent", _("Experiment: after uinput backspaces, wait for the surrounding-text event instead of sleeping"), false};
+        Option<int>         waitSurroundingTimeoutMs{this, "WaitSurroundingTimeoutMs", _("Experiment: timeout (ms) for that wait"), 50};
+        Option<int>         waitSurroundingShortMs{this, "WaitSurroundingShortMs", _("Experiment: shorter timeout (ms) used after two consecutive timeouts without a matching event"), 40};
+        Option<int>         waitSurroundingProbeEvery{this, "WaitSurroundingProbeEvery", _("Experiment: when the app's snapshot is frozen during deletion, stop waiting and re-probe once every N replacements"), 4};
+        Option<int>         waitSurroundingMinPerKeyMs{this, "WaitSurroundingMinPerKeyMs", _("Experiment: a snapshot identical to the one at send time counts as done only after this many ms per backspace"), 8};
+        Option<int>         surrDeleteSleepMs{this, "SurrDeleteSleepMs", _("Experiment: ms per deleted char to sleep after deleteSurroundingText"), 4};
+        Option<int>         surrCommitSleepMs{this, "SurrCommitSleepMs", _("Experiment: ms per committed char to sleep after commitString on the surrounding-text path"), 3};
         Option<bool>        useLotusIcons{this, "UseLotusIcons", _("Use Lotus Status Icons"), false};
 
         Option<bool>        enableDictionary{this, "EnableDictionary", _("Custom Dictionary"), false};
