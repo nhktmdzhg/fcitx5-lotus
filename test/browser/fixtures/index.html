@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Fcitx5 Lotus Browser E2E Fixture</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      margin: 20px;
+      line-height: 1.6;
+    }
+    .field-group {
+      margin-bottom: 16px;
+    }
+    label {
+      display: block;
+      font-weight: bold;
+      margin-bottom: 4px;
+    }
+    input[type="text"], textarea {
+      width: 400px;
+      padding: 8px;
+      font-size: 16px;
+      box-sizing: border-box;
+    }
+    #test-contenteditable {
+      width: 400px;
+      min-height: 50px;
+      border: 1px solid #ccc;
+      padding: 8px;
+      box-sizing: border-box;
+      font-size: 16px;
+    }
+    #event-log {
+      max-height: 200px;
+      overflow-y: auto;
+      background: #f4f4f4;
+      border: 1px solid #ddd;
+      padding: 8px;
+      font-size: 12px;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+  </style>
+</head>
+<body>
+  <h1>Fcitx5 Lotus Browser E2E Fixture</h1>
+
+  <div class="field-group">
+    <label for="test-input">Test Input:</label>
+    <input id="test-input" type="text" placeholder="Type here..." autocomplete="off" />
+  </div>
+
+  <div class="field-group">
+    <label for="test-textarea">Test Textarea:</label>
+    <textarea id="test-textarea" rows="4" cols="40" placeholder="Textarea here..." autocomplete="off"></textarea>
+  </div>
+
+  <div class="field-group">
+    <label for="test-contenteditable">Test Contenteditable:</label>
+    <div id="test-contenteditable" contenteditable="true" style="min-height:50px; border:1px solid #ccc; padding:8px;"></div>
+  </div>
+
+  <div class="field-group">
+    <label for="test-input-2">Test Input 2:</label>
+    <input id="test-input-2" type="text" placeholder="Second input..." autocomplete="off" />
+  </div>
+
+  <div class="field-group">
+    <button id="reset-btn">Reset All</button>
+  </div>
+
+  <div class="field-group">
+    <label>Event Log:</label>
+    <pre id="event-log"></pre>
+  </div>
+
+  <script>
+    window.__inputEvents = [];
+
+    window.__resetEvents = () => {
+      window.__inputEvents = [];
+      const log = document.getElementById('event-log');
+      if (log) {
+        log.textContent = '';
+      }
+    };
+
+    const targetIds = ['test-input', 'test-textarea', 'test-contenteditable', 'test-input-2'];
+    const eventTypes = [
+      'keydown',
+      'keyup',
+      'beforeinput',
+      'input',
+      'compositionstart',
+      'compositionupdate',
+      'compositionend',
+      'focus',
+      'blur'
+    ];
+
+    function recordEvent(e) {
+      let targetId = '';
+      if (e.target) {
+        if (e.target.id) {
+          targetId = e.target.id;
+        } else if (e.target.closest) {
+          const closestWithId = e.target.closest('[id]');
+          if (closestWithId) {
+            targetId = closestWithId.id;
+          }
+        }
+      }
+
+      const target = e.target;
+      const eventData = {
+        type: e.type,
+        key: e.key !== undefined ? e.key : null,
+        code: e.code !== undefined ? e.code : null,
+        data: e.data !== undefined ? e.data : null,
+        inputType: e.inputType !== undefined ? e.inputType : null,
+        isComposing: e.isComposing !== undefined ? e.isComposing : false,
+        targetId: targetId,
+        selectionStart: (target && 'selectionStart' in target) ? target.selectionStart : null,
+        selectionEnd: (target && 'selectionEnd' in target) ? target.selectionEnd : null,
+        domValue: (target && 'value' in target) ? target.value : (target ? target.textContent : null),
+        activeElementId: document.activeElement ? document.activeElement.id : null,
+        timestamp: Date.now()
+      };
+      window.__inputEvents.push(eventData);
+
+      const log = document.getElementById('event-log');
+      if (log) {
+        log.textContent += JSON.stringify(eventData) + '\n';
+        log.scrollTop = log.scrollHeight;
+      }
+    }
+
+    targetIds.forEach((id) => {
+      const el = document.getElementById(id);
+      if (el) {
+        eventTypes.forEach((eventType) => {
+          el.addEventListener(eventType, recordEvent);
+        });
+      }
+    });
+
+    const resetBtn = document.getElementById('reset-btn');
+    if (resetBtn) {
+      resetBtn.addEventListener('click', () => {
+        const input1 = document.getElementById('test-input');
+        if (input1) input1.value = '';
+
+        const textarea = document.getElementById('test-textarea');
+        if (textarea) textarea.value = '';
+
+        const ce = document.getElementById('test-contenteditable');
+        if (ce) ce.textContent = '';
+
+        const input2 = document.getElementById('test-input-2');
+        if (input2) input2.value = '';
+
+        window.__resetEvents();
+      });
+    }
+  </script>
+</body>
+</html>

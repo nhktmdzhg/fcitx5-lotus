@@ -1,0 +1,139 @@
+name: Browser E2E
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'test/browser/**'
+      - '.github/workflows/browser-e2e.yml'
+      - 'src/**'
+      - 'bamboo/**'
+      - 'data/**'
+      - 'server/**'
+      - '**/CMakeLists.txt'
+  pull_request:
+    paths:
+      - 'test/browser/**'
+      - '.github/workflows/browser-e2e.yml'
+      - 'src/**'
+      - 'bamboo/**'
+      - 'data/**'
+      - 'server/**'
+      - '**/CMakeLists.txt'
+concurrency:
+  group: browser-e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  browser-e2e:
+    name: Browser E2E (X11 / Xvfb)
+    runs-on: ubuntu-24.04
+    env:
+      DISPLAY: ':99'
+      GTK_IM_MODULE: fcitx
+      QT_IM_MODULE: fcitx
+      XMODIFIERS: '@im=fcitx'
+      PLAYWRIGHT_BROWSERS_PATH: /home/runner/.cache/ms-playwright
+    steps:
+      - name: Setup test environment
+        run: echo "TEST_HOME=$(mktemp -d -t fcitx5-browser-e2e-XXXXXX)" >> "$GITHUB_ENV"
+
+      - name: Checkout fcitx5-lotus
+        uses: actions/checkout@v7
+        with:
+          submodules: recursive
+
+      - name: Setup Go
+        uses: actions/setup-go@v7
+        with:
+          go-version: '1.18'
+          cache: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - name: Install system dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y --no-install-recommends \
+            xvfb \
+            openbox \
+            xdotool \
+            dbus-x11 \
+            fcitx5 \
+            fcitx5-frontend-all \
+            fcitx5-frontend-gtk3 \
+            fcitx5-frontend-gtk4 \
+            libfcitx5core-dev \
+            libfcitx5config-dev \
+            libfcitx5utils-dev \
+            fcitx5-modules-dev \
+            extra-cmake-modules \
+            cmake \
+            ninja-build \
+            gettext \
+            libx11-dev \
+            libfmt-dev \
+            librsvg2-bin \
+            libinput-dev \
+            libudev-dev
+
+      - name: Build and install fcitx5-lotus
+        run: |
+          cmake -B build -S . -GNinja -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr
+          sudo ninja -C build install
+
+      - name: Install test dependencies and Playwright browsers
+        working-directory: test/browser
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium firefox
+
+      - name: Typecheck browser test suite
+        working-directory: test/browser
+        run: npm run typecheck
+      - name: Setup Fcitx configuration
+        run: |
+          chmod +x test/browser/scripts/setup-fcitx.sh test/browser/scripts/run-xvfb.sh
+          ./test/browser/scripts/setup-fcitx.sh
+
+      - name: Start X11 Desktop environment and Fcitx5
+        run: |
+          ./test/browser/scripts/run-xvfb.sh
+
+      - name: Run Chromium E2E tests
+        working-directory: test/browser
+        run: npm run test:chromium
+
+      - name: Run Firefox E2E tests
+        working-directory: test/browser
+        run: npm run test:firefox
+
+      - name: Collect diagnostics on failure
+        if: failure()
+        run: |
+          fcitx5-diagnose > /tmp/fcitx5-diagnose.log 2>&1 || true
+          # Copy logs from isolated TEST_HOME to /tmp for artifact upload
+          cp "${TEST_HOME}/fcitx5.log" /tmp/fcitx5.log 2>/dev/null || true
+          cp "${TEST_HOME}/xvfb.log" /tmp/xvfb.log 2>/dev/null || true
+          cp "${TEST_HOME}/openbox.log" /tmp/openbox.log 2>/dev/null || true
+
+      - name: Upload diagnostics on failure
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: browser-e2e-failure-artifacts
+          path: |
+            test/browser/playwright-report/
+            test/browser/test-results/
+            /tmp/fcitx5.log
+            /tmp/fcitx5-diagnose.log
+            /tmp/xvfb.log
+            /tmp/openbox.log
+          if-no-files-found: ignore
+
+      - name: Stop X11 and Fcitx5
+        if: always()
+        run: |
+          ./test/browser/scripts/run-xvfb.sh --stop || true
